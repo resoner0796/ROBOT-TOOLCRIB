@@ -124,7 +124,7 @@
                 </select>
             </div>
 
-            <div id="catalog-grid" class="flex-grow overflow-y-auto p-4 sm:p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 content-start">
+            <div id="catalog-grid" class="flex-grow overflow-y-auto p-4 sm:p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 content-start auto-rows-max">
                 <div class="col-span-full text-center p-10 text-slate-400">Cargando catálogo...</div>
             </div>
         </section>
@@ -235,18 +235,21 @@
                 if (a.img && !a.img.startsWith('http')) img = `./catalogo/${a.img}`;
 
                 return `
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition group">
-                    <div class="h-32 p-4 bg-slate-50 flex items-center justify-center overflow-hidden">
-                        <img src="${img}" class="h-full w-full object-contain group-hover:scale-110 transition duration-500">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition group h-full">
+                    <div class="h-40 p-4 bg-slate-50 flex items-center justify-center overflow-hidden relative">
+                         <img src="${img}" class="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-300 absolute inset-0 m-auto">
                     </div>
-                    <div class="p-3 flex-grow flex flex-col">
-                        <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">${a.cat || 'General'}</div>
-                        <div class="font-bold text-slate-800 text-sm leading-tight mb-1 line-clamp-2" title="${a.nom}">${a.nom}</div>
-                        <div class="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded self-start border border-slate-200">${a.num}</div>
+                    <div class="p-3 flex-grow flex flex-col justify-between">
+                        <div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">${a.cat || 'General'}</div>
+                            <div class="font-bold text-slate-800 text-sm leading-tight mb-2 line-clamp-2 h-10" title="${a.nom}">${a.nom}</div>
+                        </div>
+                        <div class="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded self-start border border-slate-200 truncate w-full" title="${a.num}">${a.num}</div>
                     </div>
                     <div class="p-3 pt-0 mt-auto">
-                        <button onclick="window.addToCart('${a.num}')" class="w-full bg-white border border-slate-300 hover:border-cyan-500 hover:text-cyan-600 text-slate-600 text-sm font-bold py-1.5 rounded-lg transition shadow-sm active:bg-cyan-50">
-                            + Agregar
+                        <button onclick="window.addToCart('${a.num}')" class="w-full bg-white border border-slate-300 hover:border-cyan-500 hover:text-cyan-600 text-slate-600 text-sm font-bold py-1.5 rounded-lg transition shadow-sm active:bg-cyan-50 flex items-center justify-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                            Agregar
                         </button>
                     </div>
                 </div>
@@ -276,9 +279,19 @@
                         <div class="font-bold text-xs text-slate-800 truncate">${item.nom}</div>
                         <div class="font-mono text-[10px] text-slate-500">${item.num}</div>
                     </div>
-                    <input type="number" value="${item.qty}" min="1" onchange="window.updateQty(${idx}, this.value)" class="w-12 h-7 text-center text-sm border-slate-200 rounded focus:border-cyan-500 font-bold bg-slate-50">
-                    <button onclick="window.removeFromCart(${idx})" class="text-slate-400 hover:text-red-500 p-1">
-                        &times;
+                    
+                    <div class="flex items-center border border-slate-200 rounded">
+                        <button onclick="window.decrementQty(${idx})" class="px-2 py-1 text-slate-500 hover:text-cyan-600 hover:bg-cyan-50 rounded-l transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <span class="px-3 py-1 text-sm font-bold text-slate-700 border-x border-slate-200 min-w-[40px] text-center">${item.qty}</span>
+                        <button onclick="window.incrementQty(${idx})" class="px-2 py-1 text-slate-500 hover:text-cyan-600 hover:bg-cyan-50 rounded-r transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                        </button>
+                    </div>
+
+                    <button onclick="window.removeFromCart(${idx})" class="text-slate-400 hover:text-red-500 p-1 ml-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
                     </button>
                 </div>
             `).join('');
@@ -294,9 +307,17 @@
             renderCart();
         };
 
-        window.updateQty = (idx, val) => {
-            if (val < 1) val = 1;
-            cart[idx].qty = parseInt(val);
+        // 🔥 FUNCIONES DE CANTIDAD 🔥
+        window.incrementQty = (idx) => {
+            cart[idx].qty++;
+            renderCart();
+        };
+
+        window.decrementQty = (idx) => {
+            if (cart[idx].qty > 1) {
+                cart[idx].qty--;
+                renderCart();
+            }
         };
 
         window.removeFromCart = (idx) => {
@@ -343,7 +364,7 @@
             const numRequi = document.getElementById('req-num').value.trim();
             const empId = empIdInput.value;
             const empName = empNameInput.value;
-            const cc = document.getElementById('req-cc').value.trim(); // Lee el valor del Select
+            const cc = document.getElementById('req-cc').value.trim(); 
             const reason = document.getElementById('req-reason').value.trim();
 
             if (!currentUser) return alert("Inicia sesión primero.");
@@ -360,7 +381,6 @@
             try {
                 const batchPromises = cart.map(item => {
                     return addDoc(collection(db, 'requi_toolcrib', 'data', 'requisitions'), {
-                        // Datos para Humanos
                         numRequi: numRequi,
                         fecha: new Date().toISOString().split('T')[0],
                         empleadoId: empId,
@@ -372,7 +392,7 @@
                         // 🔥 DATOS PARA EL ROBOT 🔥
                         robot_partNumber: item.num,
                         robot_qty: item.qty,
-                        robot_costCenter: cc, // Aquí va la opción seleccionada (ej. "1234 - MTTO")
+                        robot_costCenter: cc,
                         robot_reason: reason,
                         robot_status: 'PENDIENTE'
                     });
@@ -380,7 +400,6 @@
 
                 await Promise.all(batchPromises);
 
-                // Éxito
                 cart = [];
                 renderCart();
                 document.getElementById('bot-form').reset();
