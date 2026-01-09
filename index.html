@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToolCrib Bot Commander 🤖</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { 
+                        robot: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' } 
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Toast Notifications */
+        #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 50; display: flex; flex-direction: column; gap: 0.5rem; }
+        .toast { display: flex; align-items: center; padding: 1rem; background: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-left: 4px solid; animation: slideIn 0.3s ease-out; }
+        .toast-success { border-color: #22c55e; } .toast-error { border-color: #ef4444; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        /* Scrollbar fina */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-900 h-screen flex flex-col overflow-hidden">
+
+    <div id="toast-container"></div>
+
+    <header class="bg-slate-900 text-white shadow-md flex-shrink-0 z-20">
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 h-14 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-cyan-400">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" />
+                </svg>
+                <span class="font-bold text-lg tracking-tight">ToolCrib <span class="text-cyan-400">Bot Portal</span></span>
+            </div>
+            <div id="auth-container">
+                <button id="btn-login" class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded transition">Iniciar Sesión</button>
+                <div id="user-info" class="hidden flex items-center gap-3">
+                    <span id="user-email" class="text-xs text-slate-400"></span>
+                    <button id="btn-logout" class="text-xs text-red-400 hover:text-red-300">Salir</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col md:flex-row h-full overflow-hidden">
+        
+        <aside class="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-slate-200 flex flex-col z-10 shadow-lg">
+            <div class="p-5 border-b border-slate-100 flex-shrink-0 bg-slate-50">
+                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Datos de Inyección</h2>
+                
+                <form id="bot-form" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1"># Requisición</label>
+                        <input type="text" id="req-num" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono" placeholder="REQ-2026-001">
+                    </div>
+
+                    <div class="relative">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Empleado</label>
+                        <input type="text" id="req-emp-search" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" placeholder="Buscar (Nombre/ID)..." autocomplete="off">
+                        <div id="emp-results" class="hidden absolute z-50 w-full bg-white border border-slate-200 shadow-xl rounded mt-1 max-h-40 overflow-y-auto"></div>
+                        <input type="hidden" id="req-emp-id">
+                        <input type="hidden" id="req-emp-name">
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Centro Costos</label>
+                            <select id="req-cc" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 bg-white">
+                                <option value="">Selecciona Centro...</option>
+                                <option value="1234 - MANTENIMIENTO">1234 - MANTENIMIENTO</option>
+                                <option value="5678 - FACILIDADES">5678 - FACILIDADES</option>
+                                <option value="9012 - PRODUCCION">9012 - PRODUCCION</option>
+                                <option value="3456 - INGENIERIA">3456 - INGENIERIA</option>
+                                <option value="7890 - SEGURIDAD">7890 - SEGURIDAD</option>
+                                <option value="GENERAL">GENERAL</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Razón</label>
+                            <input type="text" id="req-reason" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" placeholder="Ej. Desgaste natural">
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="flex-grow flex flex-col overflow-hidden bg-white">
+                <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-500 uppercase">Cola de Procesamiento</span>
+                    <span id="cart-count" class="bg-cyan-100 text-cyan-700 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="cart-list" class="flex-grow overflow-y-auto p-2 space-y-2">
+                    <div class="text-center p-8 text-slate-300 text-sm italic">
+                        Selecciona artículos del catálogo &rarr;
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
+                <button id="btn-launch" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-cyan-400">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" />
+                    </svg>
+                    ENVIAR AL ROBOT
+                </button>
+            </div>
+        </aside>
+
+        <section class="flex-grow flex flex-col h-full overflow-hidden bg-slate-100">
+            <div class="p-4 bg-white border-b border-slate-200 flex gap-3 shadow-sm z-10">
+                <div class="relative flex-grow">
+                    <input type="search" id="cat-search" class="w-full pl-10 pr-4 py-2 rounded-lg border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" placeholder="Buscar por número de parte o descripción...">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </div>
+                <select id="cat-filter" class="rounded-lg border-slate-300 text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500">
+                    <option value="Todos">Todas las Categorías</option>
+                </select>
+            </div>
+
+            <div id="catalog-grid" class="flex-grow overflow-y-auto p-4 sm:p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 content-start">
+                <div class="col-span-full text-center p-10 text-slate-400">Cargando catálogo...</div>
+            </div>
+        </section>
+    </main>
+
+    <div id="login-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+            <h2 class="text-xl font-bold text-slate-900 mb-4">Acceso Autorizado</h2>
+            <form id="login-form" class="space-y-4">
+                <input type="email" id="email" placeholder="Usuario" class="w-full rounded border-slate-300" required>
+                <input type="password" id="password" placeholder="Contraseña" class="w-full rounded border-slate-300" required>
+                <button type="submit" class="w-full bg-slate-900 text-white font-bold py-2 rounded hover:bg-slate-800 transition">Entrar</button>
+            </form>
+            <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="w-full text-center text-xs text-slate-400 mt-4 hover:text-slate-600">Cancelar</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIGURACIÓN FIREBASE ---
+        const app = initializeApp({ apiKey: "AIzaSyDahnSPvBNTYot00JCn5CBjggAYFVGhbjE", authDomain: "panel-logistica-simple.firebaseapp.com", projectId: "panel-logistica-simple", storageBucket: "panel-logistica-simple.firebasestorage.app", messagingSenderId: "528779971851", appId: "1:528779971851:web:29ed933e7c7fd997a4e60e" });
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // --- VARIABLES ---
+        let cart = [];
+        let articles = [];
+        let employees = [];
+        let currentUser = null;
+
+        // --- REFERENCIAS DOM ---
+        const grid = document.getElementById('catalog-grid');
+        const cartList = document.getElementById('cart-list');
+        const cartCount = document.getElementById('cart-count');
+        const empSearch = document.getElementById('req-emp-search');
+        const empResults = document.getElementById('emp-results');
+        const empIdInput = document.getElementById('req-emp-id');
+        const empNameInput = document.getElementById('req-emp-name');
+
+        // --- AUTH ---
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                document.getElementById('user-email').innerText = user.email;
+                document.getElementById('user-info').classList.remove('hidden');
+                document.getElementById('btn-login').classList.add('hidden');
+                loadData();
+            } else {
+                document.getElementById('user-info').classList.add('hidden');
+                document.getElementById('btn-login').classList.remove('hidden');
+                grid.innerHTML = '<div class="col-span-full text-center p-10 text-slate-400">Inicia sesión para ver el catálogo.</div>';
+            }
+        });
+
+        document.getElementById('login-form').onsubmit = async (e) => {
+            e.preventDefault();
+            try {
+                await signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value);
+                document.getElementById('login-modal').classList.add('hidden');
+            } catch (error) { alert("Error: " + error.message); }
+        };
+        document.getElementById('btn-login').onclick = () => document.getElementById('login-modal').classList.remove('hidden');
+        document.getElementById('btn-logout').onclick = () => signOut(auth);
+
+        // --- CARGA DE DATOS ---
+        function loadData() {
+            onSnapshot(collection(db, 'requi_toolcrib', 'data', 'articles'), (snap) => {
+                articles = [];
+                const cats = new Set();
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    articles.push({ id: doc.id, ...d });
+                    if(d.cat) cats.add(d.cat);
+                });
+                renderCatalog();
+                renderFilters(cats);
+            });
+
+            onSnapshot(collection(db, 'requi_toolcrib', 'data', 'employees'), (snap) => {
+                employees = [];
+                snap.forEach(doc => employees.push({ id: doc.id, ...doc.data() }));
+            });
+        }
+
+        // --- RENDERIZADO ---
+        function renderCatalog(filterText = '', filterCat = 'Todos') {
+            const container = document.getElementById('catalog-grid');
+            let filtered = articles;
+
+            if (filterCat !== 'Todos') filtered = filtered.filter(a => a.cat === filterCat);
+            if (filterText) {
+                const term = filterText.toLowerCase();
+                filtered = filtered.filter(a => a.num.toLowerCase().includes(term) || a.nom.toLowerCase().includes(term));
+            }
+
+            filtered.sort((a,b) => a.nom.localeCompare(b.nom));
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center p-10 text-slate-400 italic">No se encontraron artículos.</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(a => {
+                let img = a.img || "https://placehold.co/200x200/f1f5f9/94a3b8?text=N/A";
+                if (a.img && !a.img.startsWith('http')) img = `./catalogo/${a.img}`;
+
+                return `
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition group">
+                    <div class="h-32 p-4 bg-slate-50 flex items-center justify-center overflow-hidden">
+                        <img src="${img}" class="h-full w-full object-contain group-hover:scale-110 transition duration-500">
+                    </div>
+                    <div class="p-3 flex-grow flex flex-col">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">${a.cat || 'General'}</div>
+                        <div class="font-bold text-slate-800 text-sm leading-tight mb-1 line-clamp-2" title="${a.nom}">${a.nom}</div>
+                        <div class="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded self-start border border-slate-200">${a.num}</div>
+                    </div>
+                    <div class="p-3 pt-0 mt-auto">
+                        <button onclick="window.addToCart('${a.num}')" class="w-full bg-white border border-slate-300 hover:border-cyan-500 hover:text-cyan-600 text-slate-600 text-sm font-bold py-1.5 rounded-lg transition shadow-sm active:bg-cyan-50">
+                            + Agregar
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function renderFilters(cats) {
+            const select = document.getElementById('cat-filter');
+            select.innerHTML = '<option value="Todos">Todas las Categorías</option>';
+            Array.from(cats).sort().forEach(c => {
+                select.innerHTML += `<option value="${c}">${c}</option>`;
+            });
+        }
+
+        function renderCart() {
+            if (cart.length === 0) {
+                cartList.innerHTML = '<div class="text-center p-8 text-slate-300 text-sm italic">Tu cola está vacía.</div>';
+                cartCount.innerText = '0';
+                return;
+            }
+
+            cartCount.innerText = cart.length;
+            cartList.innerHTML = cart.map((item, idx) => `
+                <div class="bg-white border border-slate-200 rounded p-2 flex gap-2 items-center shadow-sm animate-[slideIn_0.2s]">
+                    <div class="flex-grow min-w-0">
+                        <div class="font-bold text-xs text-slate-800 truncate">${item.nom}</div>
+                        <div class="font-mono text-[10px] text-slate-500">${item.num}</div>
+                    </div>
+                    <input type="number" value="${item.qty}" min="1" onchange="window.updateQty(${idx}, this.value)" class="w-12 h-7 text-center text-sm border-slate-200 rounded focus:border-cyan-500 font-bold bg-slate-50">
+                    <button onclick="window.removeFromCart(${idx})" class="text-slate-400 hover:text-red-500 p-1">
+                        &times;
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // --- INTERACCIÓN ---
+        window.addToCart = (numPart) => {
+            const art = articles.find(a => a.num === numPart);
+            if (!art) return;
+            const existing = cart.find(c => c.num === numPart);
+            if (existing) { existing.qty++; } 
+            else { cart.push({ ...art, qty: 1 }); }
+            renderCart();
+        };
+
+        window.updateQty = (idx, val) => {
+            if (val < 1) val = 1;
+            cart[idx].qty = parseInt(val);
+        };
+
+        window.removeFromCart = (idx) => {
+            cart.splice(idx, 1);
+            renderCart();
+        };
+
+        document.getElementById('cat-search').addEventListener('input', (e) => renderCatalog(e.target.value, document.getElementById('cat-filter').value));
+        document.getElementById('cat-filter').addEventListener('change', (e) => renderCatalog(document.getElementById('cat-search').value, e.target.value));
+
+        // Buscador Empleados
+        empSearch.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            if (!term) { empResults.classList.add('hidden'); return; }
+            
+            const matches = employees.filter(emp => 
+                (emp.nombre && emp.nombre.toLowerCase().includes(term)) || 
+                (emp.id && emp.id.toString().includes(term))
+            );
+
+            if (matches.length > 0) {
+                empResults.innerHTML = matches.map(emp => `
+                    <div onclick="window.selectEmp('${emp.id}', '${emp.nombre}')" class="p-2 hover:bg-cyan-50 cursor-pointer border-b border-slate-100 last:border-0 text-xs">
+                        <span class="font-bold text-slate-700">${emp.nombre}</span>
+                        <span class="text-slate-400 ml-1">(${emp.id})</span>
+                    </div>
+                `).join('');
+                empResults.classList.remove('hidden');
+            } else {
+                empResults.innerHTML = '<div class="p-2 text-xs text-slate-400 italic">No encontrado</div>';
+                empResults.classList.remove('hidden');
+            }
+        });
+
+        window.selectEmp = (id, nombre) => {
+            empIdInput.value = id;
+            empNameInput.value = nombre;
+            empSearch.value = `${nombre} (${id})`;
+            empResults.classList.add('hidden');
+        };
+
+        // --- SUBMIT (DISPARADOR DEL ROBOT) ---
+        document.getElementById('btn-launch').onclick = async () => {
+            const numRequi = document.getElementById('req-num').value.trim();
+            const empId = empIdInput.value;
+            const empName = empNameInput.value;
+            const cc = document.getElementById('req-cc').value.trim(); // Lee el valor del Select
+            const reason = document.getElementById('req-reason').value.trim();
+
+            if (!currentUser) return alert("Inicia sesión primero.");
+            if (!numRequi) return alert("Falta el Número de Requisición.");
+            if (!empId) return alert("Selecciona un empleado.");
+            if (!cc) return alert("Selecciona un Centro de Costos.");
+            if (!reason) return alert("Escribe la Razón.");
+            if (cart.length === 0) return alert("La cola está vacía.");
+
+            const btn = document.getElementById('btn-launch');
+            btn.disabled = true;
+            btn.innerText = "Enviando comandos...";
+
+            try {
+                const batchPromises = cart.map(item => {
+                    return addDoc(collection(db, 'requi_toolcrib', 'data', 'requisitions'), {
+                        // Datos para Humanos
+                        numRequi: numRequi,
+                        fecha: new Date().toISOString().split('T')[0],
+                        empleadoId: empId,
+                        nombre: empName,
+                        articulo: `[${item.num}] - ${item.nom} - ${item.qty} pz`,
+                        status: 'Pendiente',
+                        timestamp: new Date(),
+
+                        // 🔥 DATOS PARA EL ROBOT 🔥
+                        robot_partNumber: item.num,
+                        robot_qty: item.qty,
+                        robot_costCenter: cc, // Aquí va la opción seleccionada (ej. "1234 - MTTO")
+                        robot_reason: reason,
+                        robot_status: 'PENDIENTE'
+                    });
+                });
+
+                await Promise.all(batchPromises);
+
+                // Éxito
+                cart = [];
+                renderCart();
+                document.getElementById('bot-form').reset();
+                empIdInput.value = "";
+                empNameInput.value = "";
+                
+                const toast = document.createElement('div');
+                toast.className = 'toast toast-success';
+                toast.innerHTML = `<div>🚀 Comandos enviados al Robot</div>`;
+                document.getElementById('toast-container').appendChild(toast);
+                setTimeout(()=>toast.remove(), 3000);
+
+            } catch (error) {
+                console.error(error);
+                alert("Error al enviar: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-cyan-400">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" />
+                    </svg> ENVIAR AL ROBOT`;
+            }
+        };
+    </script>
+</body>
+</html>
