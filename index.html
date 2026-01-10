@@ -26,6 +26,10 @@
         /* Scrollbar fina */
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Animación del acordeón */
+        .rotate-180 { transform: rotate(180deg); }
+        .transition-transform { transition-property: transform; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 200ms; }
     </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-900 h-screen flex flex-col overflow-hidden">
@@ -52,43 +56,51 @@
 
     <main class="flex-grow flex flex-col md:flex-row h-full overflow-hidden">
         
-        <aside class="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-slate-200 flex flex-col z-10 shadow-lg">
-            <div class="p-5 border-b border-slate-100 flex-shrink-0 bg-slate-50">
-                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Configuración de Disparo</h2>
-                
-                <form id="bot-form" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Centro Costos</label>
-                        <select id="req-cc" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 bg-white">
-                            <option value="">Selecciona Centro...</option>
-                            <option value="1234 - MANTENIMIENTO">1234 - MANTENIMIENTO</option>
-                            <option value="5678 - FACILIDADES">5678 - FACILIDADES</option>
-                            <option value="9012 - PRODUCCION">9012 - PRODUCCION</option>
-                            <option value="3456 - INGENIERIA">3456 - INGENIERIA</option>
-                            <option value="7890 - SEGURIDAD">7890 - SEGURIDAD</option>
-                            <option value="GENERAL">GENERAL</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Razón</label>
-                        <input type="text" id="req-reason" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" placeholder="Ej. Desgaste natural">
+        <aside class="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-slate-200 flex flex-col z-10 shadow-lg flex-shrink-0 max-h-[50vh] md:max-h-full">
+            
+            <div class="p-5 border-b border-slate-100 flex-shrink-0 bg-slate-50 overflow-y-auto max-h-[200px] md:max-h-none">
+                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Configuración de Disparo</h2>
+                <form id="bot-form" class="space-y-3">
+                    <div class="grid grid-cols-2 md:grid-cols-1 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Centro Costos</label>
+                            <select id="req-cc" class="w-full text-xs sm:text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 bg-white">
+                                <option value="">Selecciona...</option>
+                                <option value="1234 - MANTENIMIENTO">1234 - MANTENIMIENTO</option>
+                                <option value="5678 - FACILIDADES">5678 - FACILIDADES</option>
+                                <option value="9012 - PRODUCCION">9012 - PRODUCCION</option>
+                                <option value="3456 - INGENIERIA">3456 - INGENIERIA</option>
+                                <option value="7890 - SEGURIDAD">7890 - SEGURIDAD</option>
+                                <option value="GENERAL">GENERAL</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Razón</label>
+                            <input type="text" id="req-reason" class="w-full text-xs sm:text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" placeholder="Ej. Consumibles">
+                        </div>
                     </div>
                 </form>
             </div>
 
-            <div class="flex-grow flex flex-col overflow-hidden bg-white">
-                <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                    <span class="text-xs font-bold text-slate-500 uppercase">Cola de Procesamiento</span>
-                    <span id="cart-count" class="bg-cyan-100 text-cyan-700 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+            <div class="flex-grow flex flex-col overflow-hidden bg-white border-t border-slate-200">
+                <div onclick="toggleCart()" class="p-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center cursor-pointer md:cursor-default select-none transition-colors hover:bg-slate-200 md:hover:bg-slate-100">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-700 uppercase">Carrito 🛒</span>
+                        <span id="cart-count" class="bg-cyan-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                    </div>
+                    <svg id="cart-arrow" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500 transition-transform md:hidden" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
                 </div>
-                <div id="cart-list" class="flex-grow overflow-y-auto p-2 space-y-2">
+
+                <div id="cart-list" class="flex-grow overflow-y-auto p-2 space-y-2 hidden md:flex md:flex-col bg-slate-50 md:bg-white">
                     <div class="text-center p-8 text-slate-300 text-sm italic">
-                        Selecciona artículos del catálogo &rarr;
+                        El carrito está vacío.
                     </div>
                 </div>
             </div>
 
-            <div class="p-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
+            <div class="p-4 border-t border-slate-200 bg-white flex-shrink-0">
                 <button id="btn-launch" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-cyan-400">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" />
@@ -142,7 +154,6 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        // 🔥 URL ACTUALIZADA PARA LAS IMÁGENES 🔥
         const BASE_IMG_URL = "https://resoner0796.github.io/Requisiciones-ToolCrib/catalogo/"; 
 
         // --- VARIABLES ---
@@ -155,6 +166,28 @@
         const grid = document.getElementById('catalog-grid');
         const cartList = document.getElementById('cart-list');
         const cartCount = document.getElementById('cart-count');
+
+        // --- LÓGICA ACORDEÓN (SOLO MÓVIL) ---
+        // Se define en window para que el HTML la vea
+        window.toggleCart = () => {
+            // Solo actuar si estamos en móvil (detectando si el elemento está oculto por defecto o por clase)
+            // Usamos una lógica simple: togglear la clase 'hidden' y rotar la flecha
+            const list = document.getElementById('cart-list');
+            const arrow = document.getElementById('cart-arrow');
+            
+            // Toggle de visibilidad (solo afecta si no tiene 'md:flex' forzándolo)
+            // Tailwind 'hidden md:flex' hace que en desktop ignore el 'hidden'
+            // Pero para asegurarnos que el JS funcione bien en móvil:
+            if (list.classList.contains('hidden')) {
+                list.classList.remove('hidden');
+                list.classList.add('flex', 'flex-col'); // Asegurar display flex
+                arrow.classList.add('rotate-180');
+            } else {
+                list.classList.add('hidden');
+                list.classList.remove('flex', 'flex-col');
+                arrow.classList.remove('rotate-180');
+            }
+        };
 
         // --- AUTH ---
         onAuthStateChanged(auth, (user) => {
@@ -183,28 +216,22 @@
 
         // --- CARGA DE DATOS ---
         function loadData() {
-            // Cargar Listas (Favoritos)
             onSnapshot(collection(db, 'requi_toolcrib', 'data', 'lists'), (snap) => {
                 listsMap.clear();
                 const selectList = document.getElementById('list-filter');
-                // Guardar selección actual para no perderla al refrescar
                 const currentVal = selectList.value;
                 selectList.innerHTML = '<option value="Todos">⭐ Todas las Listas</option>';
-                
                 snap.forEach(doc => {
                     const l = doc.data();
                     listsMap.set(doc.id, l.name);
                     selectList.innerHTML += `<option value="${doc.id}">${l.name}</option>`;
                 });
-                
                 if (currentVal && Array.from(selectList.options).some(o => o.value === currentVal)) {
                     selectList.value = currentVal;
                 }
-                // Si ya tenemos artículos cargados, re-renderizar por si acaso
                 if (articles.length > 0) renderCatalog();
             });
 
-            // Cargar Artículos
             onSnapshot(collection(db, 'requi_toolcrib', 'data', 'articles'), (snap) => {
                 articles = [];
                 const cats = new Set();
@@ -217,7 +244,6 @@
                     if(d.cat) cats.add(d.cat);
                 });
 
-                // Actualizar Filtro Categorías
                 selectCat.innerHTML = '<option value="Todos">📁 Todas las Categorías</option>';
                 Array.from(cats).sort().forEach(c => {
                     selectCat.innerHTML += `<option value="${c}">${c}</option>`;
@@ -239,15 +265,10 @@
             const container = document.getElementById('catalog-grid');
             let filtered = articles;
 
-            // Filtro por Categoría
             if (filterCat !== 'Todos') filtered = filtered.filter(a => a.cat === filterCat);
-            
-            // Filtro por Lista (Favoritos)
             if (filterListId !== 'Todos') {
                 filtered = filtered.filter(a => a.assignedLists && a.assignedLists.includes(filterListId));
             }
-
-            // Filtro por Texto
             if (filterText) {
                 filtered = filtered.filter(a => a.num.toLowerCase().includes(filterText) || a.nom.toLowerCase().includes(filterText));
             }
@@ -260,16 +281,10 @@
             }
 
             container.innerHTML = filtered.map(a => {
-                // Lógica para arreglar la imagen 🚑
                 let img = "https://placehold.co/200x200/f1f5f9/94a3b8?text=N/A";
-                
                 if (a.img) {
-                    if (a.img.startsWith('http')) {
-                        img = a.img; // Si ya es link completo, úsalo
-                    } else {
-                        // Concatenamos la BASE_IMG_URL con el nombre de la imagen
-                        img = BASE_IMG_URL + a.img; 
-                    }
+                    if (a.img.startsWith('http')) { img = a.img; } 
+                    else { img = BASE_IMG_URL + a.img; }
                 }
 
                 return `
@@ -353,7 +368,6 @@
             const now = new Date();
             const folioAuto = `REQ-${now.getFullYear().toString().slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
             
-            // Datos del Formulario Limpio
             const cc = document.getElementById('req-cc').value.trim(); 
             const reason = document.getElementById('req-reason').value.trim();
 
@@ -369,11 +383,11 @@
             try {
                 const batchPromises = cart.map(item => {
                     return addDoc(collection(db, 'requi_toolcrib', 'data', 'requisitions'), {
-                        // Datos para Humanos (Historial)
+                        // Datos para Humanos
                         numRequi: folioAuto, 
                         fecha: new Date().toISOString().split('T')[0],
-                        empleadoId: "AUTO-BOT", // Usuario Bot
-                        nombre: "Comando Remoto", // Usuario Bot
+                        empleadoId: "AUTO-BOT", 
+                        nombre: "Comando Remoto", 
                         articulo: `[${item.num}] - ${item.nom} - ${item.qty} pz`,
                         status: 'Pendiente',
                         timestamp: new Date(),
@@ -391,7 +405,6 @@
 
                 cart = [];
                 renderCart();
-                // Limpiar solo la razón, el centro de costos igual y lo usas seguido
                 document.getElementById('req-reason').value = ""; 
                 
                 const toast = document.createElement('div');
