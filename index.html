@@ -142,10 +142,8 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        // 🔥 AQUÍ PEGA LA URL DE TU REPO ORIGINAL PARA LAS IMÁGENES 🔥
-        // Ejemplo: "https://resoner0796.github.io/RASTREADOR-DE-ORDENES/catalogo/"
-        // Asegúrate de que termine en "/"
-        const BASE_IMG_URL = "https://resoner0796.github.io/Requisiciones-ToolCrib/catalogo"; 
+        // 🔥 URL ACTUALIZADA PARA LAS IMÁGENES 🔥
+        const BASE_IMG_URL = "https://resoner0796.github.io/Requisiciones-ToolCrib/catalogo/"; 
 
         // --- VARIABLES ---
         let cart = [];
@@ -262,14 +260,14 @@
             }
 
             container.innerHTML = filtered.map(a => {
-                // Lógica para arreglar la imagen ROTA 🚑
+                // Lógica para arreglar la imagen 🚑
                 let img = "https://placehold.co/200x200/f1f5f9/94a3b8?text=N/A";
                 
                 if (a.img) {
                     if (a.img.startsWith('http')) {
                         img = a.img; // Si ya es link completo, úsalo
                     } else {
-                        // Si es nombre de archivo, pégale la URL base del otro repo
+                        // Concatenamos la BASE_IMG_URL con el nombre de la imagen
                         img = BASE_IMG_URL + a.img; 
                     }
                 }
