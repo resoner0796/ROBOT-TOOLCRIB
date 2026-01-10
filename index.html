@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ToolCrib Bot Commander 🤖</title>
+    <title>TC Bot Commander 🤖</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -17,7 +17,7 @@
         }
     </script>
     <style>
-        /* --- REGLA DE ORO UX MÓVIL: Inputs a 16px para evitar Zoom --- */
+        /* --- UX MÓVIL: Evitar Zoom en Inputs --- */
         input, select, textarea, button { font-size: 16px !important; }
 
         /* Toast Notifications */
@@ -53,7 +53,7 @@
             <div class="flex items-center gap-3">
                 <button onclick="document.getElementById('history-modal').classList.remove('hidden')" class="text-sm bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-lg transition flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Historial
+                    <span class="hidden sm:inline">Historial</span>
                 </button>
 
                 <div id="auth-container">
@@ -334,7 +334,7 @@
                 if (a.img) img = a.img.startsWith('http') ? a.img : BASE_IMG_URL + a.img;
                 
                 return `
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition h-full">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition h-full min-h-[220px]">
                     <div class="h-32 p-4 bg-slate-50 flex items-center justify-center overflow-hidden relative">
                          <img src="${img}" class="max-h-full max-w-full object-contain absolute inset-0 m-auto" onerror="this.src='https://placehold.co/200x200/f1f5f9/94a3b8?text=Error'">
                     </div>
