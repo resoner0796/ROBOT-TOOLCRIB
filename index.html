@@ -54,39 +54,24 @@
         
         <aside class="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-slate-200 flex flex-col z-10 shadow-lg">
             <div class="p-5 border-b border-slate-100 flex-shrink-0 bg-slate-50">
-                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Datos de Inyección</h2>
+                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Configuración de Disparo</h2>
                 
-                <form id="bot-form" class="space-y-3">
+                <form id="bot-form" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1"># Requisición</label>
-                        <input type="text" id="req-num" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono" placeholder="REQ-2026-001">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Centro Costos</label>
+                        <select id="req-cc" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 bg-white">
+                            <option value="">Selecciona Centro...</option>
+                            <option value="1234 - MANTENIMIENTO">1234 - MANTENIMIENTO</option>
+                            <option value="5678 - FACILIDADES">5678 - FACILIDADES</option>
+                            <option value="9012 - PRODUCCION">9012 - PRODUCCION</option>
+                            <option value="3456 - INGENIERIA">3456 - INGENIERIA</option>
+                            <option value="7890 - SEGURIDAD">7890 - SEGURIDAD</option>
+                            <option value="GENERAL">GENERAL</option>
+                        </select>
                     </div>
-
-                    <div class="relative">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Empleado</label>
-                        <input type="text" id="req-emp-search" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" placeholder="Buscar (Nombre/ID)..." autocomplete="off">
-                        <div id="emp-results" class="hidden absolute z-50 w-full bg-white border border-slate-200 shadow-xl rounded mt-1 max-h-40 overflow-y-auto"></div>
-                        <input type="hidden" id="req-emp-id">
-                        <input type="hidden" id="req-emp-name">
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-2">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Centro Costos</label>
-                            <select id="req-cc" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 bg-white">
-                                <option value="">Selecciona Centro...</option>
-                                <option value="1234 - MANTENIMIENTO">1234 - MANTENIMIENTO</option>
-                                <option value="5678 - FACILIDADES">5678 - FACILIDADES</option>
-                                <option value="9012 - PRODUCCION">9012 - PRODUCCION</option>
-                                <option value="3456 - INGENIERIA">3456 - INGENIERIA</option>
-                                <option value="7890 - SEGURIDAD">7890 - SEGURIDAD</option>
-                                <option value="GENERAL">GENERAL</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Razón</label>
-                            <input type="text" id="req-reason" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" placeholder="Ej. Desgaste natural">
-                        </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Razón</label>
+                        <input type="text" id="req-reason" class="w-full text-sm rounded border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" placeholder="Ej. Desgaste natural">
                     </div>
                 </form>
             </div>
@@ -114,14 +99,19 @@
         </aside>
 
         <section class="flex-grow flex flex-col h-full overflow-hidden bg-slate-100">
-            <div class="p-4 bg-white border-b border-slate-200 flex gap-3 shadow-sm z-10">
+            <div class="p-4 bg-white border-b border-slate-200 flex flex-col sm:flex-row gap-3 shadow-sm z-10">
                 <div class="relative flex-grow">
-                    <input type="search" id="cat-search" class="w-full pl-10 pr-4 py-2 rounded-lg border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" placeholder="Buscar por número de parte o descripción...">
+                    <input type="search" id="cat-search" class="w-full pl-10 pr-4 py-2 rounded-lg border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500" placeholder="Buscar artículo...">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
-                <select id="cat-filter" class="rounded-lg border-slate-300 text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500">
-                    <option value="Todos">Todas las Categorías</option>
-                </select>
+                <div class="flex gap-2">
+                    <select id="list-filter" class="rounded-lg border-slate-300 text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 max-w-[150px]">
+                        <option value="Todos">⭐ Todas las Listas</option>
+                    </select>
+                    <select id="cat-filter" class="rounded-lg border-slate-300 text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 max-w-[150px]">
+                        <option value="Todos">📁 Todas las Categorías</option>
+                    </select>
+                </div>
             </div>
 
             <div id="catalog-grid" class="flex-grow overflow-y-auto p-4 sm:p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 content-start auto-rows-max">
@@ -152,20 +142,21 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
+        // 🔥 AQUÍ PEGA LA URL DE TU REPO ORIGINAL PARA LAS IMÁGENES 🔥
+        // Ejemplo: "https://resoner0796.github.io/RASTREADOR-DE-ORDENES/catalogo/"
+        // Asegúrate de que termine en "/"
+        const BASE_IMG_URL = "https://github.com/resoner0796/Requisiciones-ToolCrib/tree/deb9f7280bfba0a6ffcf91244d6972c73685eeb7/catalogo"; 
+
         // --- VARIABLES ---
         let cart = [];
         let articles = [];
-        let employees = [];
+        let listsMap = new Map();
         let currentUser = null;
 
         // --- REFERENCIAS DOM ---
         const grid = document.getElementById('catalog-grid');
         const cartList = document.getElementById('cart-list');
         const cartCount = document.getElementById('cart-count');
-        const empSearch = document.getElementById('req-emp-search');
-        const empResults = document.getElementById('emp-results');
-        const empIdInput = document.getElementById('req-emp-id');
-        const empNameInput = document.getElementById('req-emp-name');
 
         // --- AUTH ---
         onAuthStateChanged(auth, (user) => {
@@ -194,33 +185,73 @@
 
         // --- CARGA DE DATOS ---
         function loadData() {
+            // Cargar Listas (Favoritos)
+            onSnapshot(collection(db, 'requi_toolcrib', 'data', 'lists'), (snap) => {
+                listsMap.clear();
+                const selectList = document.getElementById('list-filter');
+                // Guardar selección actual para no perderla al refrescar
+                const currentVal = selectList.value;
+                selectList.innerHTML = '<option value="Todos">⭐ Todas las Listas</option>';
+                
+                snap.forEach(doc => {
+                    const l = doc.data();
+                    listsMap.set(doc.id, l.name);
+                    selectList.innerHTML += `<option value="${doc.id}">${l.name}</option>`;
+                });
+                
+                if (currentVal && Array.from(selectList.options).some(o => o.value === currentVal)) {
+                    selectList.value = currentVal;
+                }
+                // Si ya tenemos artículos cargados, re-renderizar por si acaso
+                if (articles.length > 0) renderCatalog();
+            });
+
+            // Cargar Artículos
             onSnapshot(collection(db, 'requi_toolcrib', 'data', 'articles'), (snap) => {
                 articles = [];
                 const cats = new Set();
+                const selectCat = document.getElementById('cat-filter');
+                const currentCatVal = selectCat.value;
+
                 snap.forEach(doc => {
                     const d = doc.data();
                     articles.push({ id: doc.id, ...d });
                     if(d.cat) cats.add(d.cat);
                 });
-                renderCatalog();
-                renderFilters(cats);
-            });
 
-            onSnapshot(collection(db, 'requi_toolcrib', 'data', 'employees'), (snap) => {
-                employees = [];
-                snap.forEach(doc => employees.push({ id: doc.id, ...doc.data() }));
+                // Actualizar Filtro Categorías
+                selectCat.innerHTML = '<option value="Todos">📁 Todas las Categorías</option>';
+                Array.from(cats).sort().forEach(c => {
+                    selectCat.innerHTML += `<option value="${c}">${c}</option>`;
+                });
+                if (currentCatVal && Array.from(selectCat.options).some(o => o.value === currentCatVal)) {
+                    selectCat.value = currentCatVal;
+                }
+
+                renderCatalog();
             });
         }
 
         // --- RENDERIZADO ---
-        function renderCatalog(filterText = '', filterCat = 'Todos') {
+        function renderCatalog() {
+            const filterText = document.getElementById('cat-search').value.toLowerCase();
+            const filterCat = document.getElementById('cat-filter').value;
+            const filterListId = document.getElementById('list-filter').value;
+
             const container = document.getElementById('catalog-grid');
             let filtered = articles;
 
+            // Filtro por Categoría
             if (filterCat !== 'Todos') filtered = filtered.filter(a => a.cat === filterCat);
+            
+            // Filtro por Lista (Favoritos)
+            if (filterListId !== 'Todos') {
+                filtered = filtered.filter(a => a.assignedLists && a.assignedLists.includes(filterListId));
+            }
+
+            // Filtro por Texto
             if (filterText) {
-                const term = filterText.toLowerCase();
-                filtered = filtered.filter(a => a.num.toLowerCase().includes(term) || a.nom.toLowerCase().includes(term));
+                filtered = filtered.filter(a => a.num.toLowerCase().includes(filterText) || a.nom.toLowerCase().includes(filterText));
             }
 
             filtered.sort((a,b) => a.nom.localeCompare(b.nom));
@@ -231,13 +262,23 @@
             }
 
             container.innerHTML = filtered.map(a => {
-                let img = a.img || "https://placehold.co/200x200/f1f5f9/94a3b8?text=N/A";
-                if (a.img && !a.img.startsWith('http')) img = `./catalogo/${a.img}`;
+                // Lógica para arreglar la imagen ROTA 🚑
+                let img = "https://placehold.co/200x200/f1f5f9/94a3b8?text=N/A";
+                
+                if (a.img) {
+                    if (a.img.startsWith('http')) {
+                        img = a.img; // Si ya es link completo, úsalo
+                    } else {
+                        // Si es nombre de archivo, pégale la URL base del otro repo
+                        img = BASE_IMG_URL + a.img; 
+                    }
+                }
 
                 return `
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition group h-full">
                     <div class="h-40 p-4 bg-slate-50 flex items-center justify-center overflow-hidden relative">
-                         <img src="${img}" class="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-300 absolute inset-0 m-auto">
+                         <img src="${img}" class="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-300 absolute inset-0 m-auto" 
+                         onerror="this.src='https://placehold.co/200x200/f1f5f9/94a3b8?text=Error+Img'">
                     </div>
                     <div class="p-3 flex-grow flex flex-col justify-between">
                         <div>
@@ -255,14 +296,6 @@
                 </div>
                 `;
             }).join('');
-        }
-
-        function renderFilters(cats) {
-            const select = document.getElementById('cat-filter');
-            select.innerHTML = '<option value="Todos">Todas las Categorías</option>';
-            Array.from(cats).sort().forEach(c => {
-                select.innerHTML += `<option value="${c}">${c}</option>`;
-            });
         }
 
         function renderCart() {
@@ -307,84 +340,42 @@
             renderCart();
         };
 
-        // 🔥 FUNCIONES DE CANTIDAD 🔥
-        window.incrementQty = (idx) => {
-            cart[idx].qty++;
-            renderCart();
-        };
+        window.incrementQty = (idx) => { cart[idx].qty++; renderCart(); };
+        window.decrementQty = (idx) => { if (cart[idx].qty > 1) { cart[idx].qty--; renderCart(); } };
+        window.removeFromCart = (idx) => { cart.splice(idx, 1); renderCart(); };
 
-        window.decrementQty = (idx) => {
-            if (cart[idx].qty > 1) {
-                cart[idx].qty--;
-                renderCart();
-            }
-        };
-
-        window.removeFromCart = (idx) => {
-            cart.splice(idx, 1);
-            renderCart();
-        };
-
-        document.getElementById('cat-search').addEventListener('input', (e) => renderCatalog(e.target.value, document.getElementById('cat-filter').value));
-        document.getElementById('cat-filter').addEventListener('change', (e) => renderCatalog(document.getElementById('cat-search').value, e.target.value));
-
-        // Buscador Empleados
-        empSearch.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            if (!term) { empResults.classList.add('hidden'); return; }
-            
-            const matches = employees.filter(emp => 
-                (emp.nombre && emp.nombre.toLowerCase().includes(term)) || 
-                (emp.id && emp.id.toString().includes(term))
-            );
-
-            if (matches.length > 0) {
-                empResults.innerHTML = matches.map(emp => `
-                    <div onclick="window.selectEmp('${emp.id}', '${emp.nombre}')" class="p-2 hover:bg-cyan-50 cursor-pointer border-b border-slate-100 last:border-0 text-xs">
-                        <span class="font-bold text-slate-700">${emp.nombre}</span>
-                        <span class="text-slate-400 ml-1">(${emp.id})</span>
-                    </div>
-                `).join('');
-                empResults.classList.remove('hidden');
-            } else {
-                empResults.innerHTML = '<div class="p-2 text-xs text-slate-400 italic">No encontrado</div>';
-                empResults.classList.remove('hidden');
-            }
-        });
-
-        window.selectEmp = (id, nombre) => {
-            empIdInput.value = id;
-            empNameInput.value = nombre;
-            empSearch.value = `${nombre} (${id})`;
-            empResults.classList.add('hidden');
-        };
+        // Listeners Filtros
+        document.getElementById('cat-search').addEventListener('input', () => renderCatalog());
+        document.getElementById('cat-filter').addEventListener('change', () => renderCatalog());
+        document.getElementById('list-filter').addEventListener('change', () => renderCatalog());
 
         // --- SUBMIT (DISPARADOR DEL ROBOT) ---
         document.getElementById('btn-launch').onclick = async () => {
-            const numRequi = document.getElementById('req-num').value.trim();
-            const empId = empIdInput.value;
-            const empName = empNameInput.value;
+            // Generar folio automático (ej. REQ-YYMMDD-HHMM)
+            const now = new Date();
+            const folioAuto = `REQ-${now.getFullYear().toString().slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+            
+            // Datos del Formulario Limpio
             const cc = document.getElementById('req-cc').value.trim(); 
             const reason = document.getElementById('req-reason').value.trim();
 
             if (!currentUser) return alert("Inicia sesión primero.");
-            if (!numRequi) return alert("Falta el Número de Requisición.");
-            if (!empId) return alert("Selecciona un empleado.");
             if (!cc) return alert("Selecciona un Centro de Costos.");
             if (!reason) return alert("Escribe la Razón.");
             if (cart.length === 0) return alert("La cola está vacía.");
 
             const btn = document.getElementById('btn-launch');
             btn.disabled = true;
-            btn.innerText = "Enviando comandos...";
+            btn.innerText = "Enviando...";
 
             try {
                 const batchPromises = cart.map(item => {
                     return addDoc(collection(db, 'requi_toolcrib', 'data', 'requisitions'), {
-                        numRequi: numRequi,
+                        // Datos para Humanos (Historial)
+                        numRequi: folioAuto, 
                         fecha: new Date().toISOString().split('T')[0],
-                        empleadoId: empId,
-                        nombre: empName,
+                        empleadoId: "AUTO-BOT", // Usuario Bot
+                        nombre: "Comando Remoto", // Usuario Bot
                         articulo: `[${item.num}] - ${item.nom} - ${item.qty} pz`,
                         status: 'Pendiente',
                         timestamp: new Date(),
@@ -402,13 +393,12 @@
 
                 cart = [];
                 renderCart();
-                document.getElementById('bot-form').reset();
-                empIdInput.value = "";
-                empNameInput.value = "";
+                // Limpiar solo la razón, el centro de costos igual y lo usas seguido
+                document.getElementById('req-reason').value = ""; 
                 
                 const toast = document.createElement('div');
                 toast.className = 'toast toast-success';
-                toast.innerHTML = `<div>🚀 Comandos enviados al Robot</div>`;
+                toast.innerHTML = `<div>🚀 Enviado: ${folioAuto}</div>`;
                 document.getElementById('toast-container').appendChild(toast);
                 setTimeout(()=>toast.remove(), 3000);
 
