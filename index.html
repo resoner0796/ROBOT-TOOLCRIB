@@ -34,6 +34,11 @@
         .badge-pendiente { @apply bg-yellow-100 text-yellow-800 border-yellow-200; }
         .badge-autorizada { @apply bg-green-100 text-green-800 border-green-200; }
         .badge-procesando { @apply bg-blue-100 text-blue-800 border-blue-200; }
+
+        /* Ocultar flechas de input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
     </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-900 h-screen flex flex-col overflow-hidden">
@@ -196,7 +201,7 @@
                 document.getElementById('user-info').classList.remove('hidden');
                 document.getElementById('btn-login').classList.add('hidden');
                 loadData();
-                listenHistory(); // Activar escucha de historial en tiempo real
+                listenHistory();
             } else {
                 document.getElementById('user-info').classList.add('hidden');
                 document.getElementById('btn-login').classList.remove('hidden');
@@ -247,65 +252,26 @@
             });
         }
 
-        // --- HISTORIAL EN TIEMPO REAL 🚽✨ ---
+        // HISTORIAL
         function listenHistory() {
-            // Escuchamos las últimas 20 requisiciones generadas por el BOT
-            const q = query(collection(db, 'requi_toolcrib', 'data', 'requisitions'), 
-                          where("empleadoId", "==", "AUTO-BOT"), // Solo las mías
-                          orderBy("timestamp", "desc"), 
-                          limit(20));
-
+            const q = query(collection(db, 'requi_toolcrib', 'data', 'requisitions'), where("empleadoId", "==", "AUTO-BOT"), orderBy("timestamp", "desc"), limit(20));
             onSnapshot(q, (snapshot) => {
                 const list = document.getElementById('history-list');
-                if (snapshot.empty) {
-                    list.innerHTML = '<div class="text-center text-slate-400">Sin historial reciente.</div>';
-                    return;
-                }
-
-                // Agrupar por Folio (numRequi) porque una requi tiene varios items
+                if (snapshot.empty) { list.innerHTML = '<div class="text-center text-slate-400">Sin historial reciente.</div>'; return; }
                 const groups = new Map();
                 snapshot.forEach(doc => {
                     const d = doc.data();
-                    if (!groups.has(d.numRequi)) {
-                        groups.set(d.numRequi, { 
-                            folio: d.numRequi, 
-                            fecha: d.timestamp ? d.timestamp.toDate() : new Date(), 
-                            status: d.status || d.robot_status || 'Pendiente', // Prioridad al status humano, fallback al robot
-                            items: [] 
-                        });
-                    }
+                    if (!groups.has(d.numRequi)) { groups.set(d.numRequi, { folio: d.numRequi, fecha: d.timestamp ? d.timestamp.toDate() : new Date(), status: d.status || d.robot_status || 'Pendiente', items: [] }); }
                     groups.get(d.numRequi).items.push(d);
                 });
-
                 list.innerHTML = Array.from(groups.values()).map(g => {
-                    // Determinar color de badge
                     let badgeClass = 'bg-gray-100 text-gray-600';
                     let statusText = g.status.toUpperCase();
-                    
                     if (statusText.includes('AUTORIZA') || statusText === 'COMPLETADO') badgeClass = 'bg-green-100 text-green-700 border border-green-200';
                     else if (statusText.includes('PENDIENTE')) badgeClass = 'bg-yellow-50 text-yellow-700 border border-yellow-200';
                     else if (statusText.includes('PROCESANDO')) badgeClass = 'bg-blue-50 text-blue-700 border border-blue-200';
-
                     const dateStr = g.fecha.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
-
-                    return `
-                    <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                        <div class="flex justify-between items-start mb-2">
-                            <div>
-                                <div class="font-bold text-slate-800 text-sm">${g.folio}</div>
-                                <div class="text-xs text-slate-400">${dateStr}</div>
-                            </div>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${statusText}</span>
-                        </div>
-                        <div class="space-y-1">
-                            ${g.items.map(i => `
-                                <div class="text-xs text-slate-600 flex justify-between border-b border-gray-50 last:border-0 pb-1">
-                                    <span class="truncate pr-2">${i.robot_partNumber}</span>
-                                    <span class="font-mono font-bold">x${i.robot_qty}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>`;
+                    return `<div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm"><div class="flex justify-between items-start mb-2"><div><div class="font-bold text-slate-800 text-sm">${g.folio}</div><div class="text-xs text-slate-400">${dateStr}</div></div><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${statusText}</span></div><div class="space-y-1">${g.items.map(i => `<div class="text-xs text-slate-600 flex justify-between border-b border-gray-50 last:border-0 pb-1"><span class="truncate pr-2">${i.robot_partNumber}</span><span class="font-mono font-bold">x${i.robot_qty}</span></div>`).join('')}</div></div>`;
                 }).join('');
             });
         }
@@ -333,93 +299,87 @@
                 let img = "https://placehold.co/200x200/f1f5f9/94a3b8?text=N/A";
                 if (a.img) img = a.img.startsWith('http') ? a.img : BASE_IMG_URL + a.img;
                 
+                const cartItem = cart.find(c => c.num === a.num);
+                let actionHtml = '';
+
+                if (cartItem) {
+                    // CONTROLES DE CANTIDAD EN LA CARD
+                    actionHtml = `
+                    <div class="flex items-center justify-between bg-slate-100 rounded-lg p-1">
+                        <button onclick="window.decrementQty('${a.num}')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md text-slate-500 hover:text-cyan-600 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <input type="number" value="${cartItem.qty}" min="1" onchange="window.updateQtyManual('${a.num}', this.value)" class="w-10 text-center bg-transparent font-bold text-sm focus:outline-none">
+                        <button onclick="window.incrementQty('${a.num}')" class="w-8 h-8 flex items-center justify-center bg-white rounded-md text-slate-500 hover:text-cyan-600 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <button onclick="window.removeFromCart('${a.num}')" class="ml-1 text-slate-400 hover:text-red-500 p-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                        </button>
+                    </div>`;
+                } else {
+                    // BOTÓN AGREGAR
+                    actionHtml = `
+                    <button onclick="window.addToCart('${a.num}')" class="w-full bg-white border border-slate-300 active:bg-cyan-50 active:border-cyan-500 active:text-cyan-600 text-slate-600 text-xs font-bold py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-1 touch-manipulation">
+                        + AGREGAR
+                    </button>`;
+                }
+                
                 return `
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition h-full min-h-[220px]">
-                    <div class="h-32 p-4 bg-slate-50 flex items-center justify-center overflow-hidden relative">
-                         <img src="${img}" class="max-h-full max-w-full object-contain absolute inset-0 m-auto" onerror="this.src='https://placehold.co/200x200/f1f5f9/94a3b8?text=Error'">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition h-full">
+                    <div class="aspect-square p-2 bg-white flex items-center justify-center overflow-hidden relative">
+                         <img src="${img}" class="object-contain w-full h-full" onerror="this.src='https://placehold.co/200x200/f1f5f9/94a3b8?text=Error'">
                     </div>
-                    <div class="p-3 flex-grow flex flex-col justify-between">
+                    <div class="p-3 flex-grow flex flex-col justify-between bg-slate-50">
                         <div>
                             <div class="text-[10px] font-bold text-slate-400 uppercase mb-1 truncate">${a.cat || 'General'}</div>
                             <div class="font-bold text-slate-800 text-xs leading-tight mb-2 line-clamp-2 h-8">${a.nom}</div>
                         </div>
-                        <div class="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded self-start border border-slate-200 truncate w-full">${a.num}</div>
+                        <div class="font-mono text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded self-start border border-slate-200 truncate w-full text-center">${a.num}</div>
                     </div>
-                    <div class="p-2 pt-0 mt-auto">
-                        <button onclick="window.addToCart('${a.num}')" class="w-full bg-white border border-slate-300 active:bg-cyan-50 active:border-cyan-500 active:text-cyan-600 text-slate-600 text-xs font-bold py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-1 touch-manipulation">
-                            + AGREGAR
-                        </button>
+                    <div class="p-2 bg-slate-50 border-t border-slate-100">
+                        ${actionHtml}
                     </div>
                 </div>`;
             }).join('');
         }
 
-        // RENDER CART (Optimizado para no perder foco al escribir)
+        // RENDER CART
         window.renderCart = () => {
             const list = document.getElementById('cart-list');
             const count = document.getElementById('cart-count');
-            
-            if (cart.length === 0) {
-                list.innerHTML = '<div class="text-center p-8 text-slate-300 text-sm italic">Tu carrito está vacío.</div>';
-                count.innerText = '0';
-                return;
-            }
+            if (cart.length === 0) { list.innerHTML = '<div class="text-center p-8 text-slate-300 text-sm italic">Tu carrito está vacío.</div>'; count.innerText = '0'; return; }
             count.innerText = cart.length;
-
-            // Renderizado inteligente: Si ya existe el input, no lo sobrescribimos si tiene foco
-            // Para simplificar en vanilla JS sin Virtual DOM: Reemplazamos todo el HTML, 
-            // pero el input tiene valor 'value="${item.qty}"'
-            
             list.innerHTML = cart.map((item, idx) => `
                 <div class="bg-white border border-slate-200 rounded-lg p-2 flex gap-2 items-center shadow-sm">
-                    <div class="flex-grow min-w-0">
-                        <div class="font-bold text-xs text-slate-800 truncate">${item.nom}</div>
-                        <div class="font-mono text-[10px] text-slate-500">${item.num}</div>
+                    <div class="flex-grow min-w-0"><div class="font-bold text-xs text-slate-800 truncate">${item.nom}</div><div class="font-mono text-[10px] text-slate-500">${item.num}</div></div>
+                    <div class="flex items-center bg-slate-100 rounded-lg">
+                        <button onclick="window.decrementQty('${item.num}')" class="p-1 text-slate-500 hover:text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>
+                        <input type="number" value="${item.qty}" min="1" onchange="window.updateQtyManual('${item.num}', this.value)" class="w-10 text-center bg-transparent font-bold text-sm focus:outline-none">
+                        <button onclick="window.incrementQty('${item.num}')" class="p-1 text-slate-500 hover:text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg></button>
                     </div>
-                    <div class="flex items-center">
-                         <input type="number" value="${item.qty}" min="1" 
-                                onchange="window.updateQtyManual(${idx}, this.value)" 
-                                class="w-16 h-9 text-center font-bold border border-slate-300 rounded-lg focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-slate-800 bg-slate-50 text-sm" 
-                                inputmode="numeric">
-                    </div>
-                    <button onclick="window.removeFromCart(${idx})" class="text-slate-400 hover:text-red-500 p-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
-                    </button>
+                    <button onclick="window.removeFromCart('${item.num}')" class="text-slate-400 hover:text-red-500 p-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
                 </div>
             `).join('');
         };
 
-        // ACTIONS
+        // ACTIONS (Usando numPart como ID)
         window.addToCart = (num) => {
-            const art = articles.find(a => a.num === num);
-            if (!art) return;
-            const ex = cart.find(c => c.num === num);
-            if (ex) ex.qty++; else cart.push({ ...art, qty: 1 });
-            window.renderCart();
-            showToast("Agregado al carrito");
+            const art = articles.find(a => a.num === num); if (!art) return;
+            const ex = cart.find(c => c.num === num); if (ex) ex.qty++; else cart.push({ ...art, qty: 1 });
+            updateAllViews(); showToast("Agregado al carrito");
         };
+        window.incrementQty = (num) => { const item = cart.find(c => c.num === num); if(item) { item.qty++; updateAllViews(); } };
+        window.decrementQty = (num) => { const item = cart.find(c => c.num === num); if(item && item.qty > 1) { item.qty--; updateAllViews(); } else if (item && item.qty === 1) { window.removeFromCart(num); } };
+        window.updateQtyManual = (num, val) => { const item = cart.find(c => c.num === num); if(item) { let newQty = parseInt(val); if(isNaN(newQty) || newQty < 1) newQty = 1; item.qty = newQty; updateAllViews(); } };
+        window.removeFromCart = (num) => { const idx = cart.findIndex(c => c.num === num); if(idx > -1) { cart.splice(idx, 1); updateAllViews(); } };
 
-        // Nueva función para actualización manual
-        window.updateQtyManual = (idx, val) => {
-            let newQty = parseInt(val);
-            if (isNaN(newQty) || newQty < 1) newQty = 1;
-            cart[idx].qty = newQty;
-            // No llamamos a renderCart aquí para no perder el foco del input mientras escribes
-            // Solo actualizamos el modelo. Si quieres forzar update visual: window.renderCart();
-        };
+        function updateAllViews() { window.renderCart(); renderCatalog(); } // Actualiza carrito y catálogo al mismo tiempo
 
-        window.removeFromCart = (idx) => { cart.splice(idx, 1); window.renderCart(); };
-        
         window.toggleCart = () => {
-            const list = document.getElementById('cart-list');
-            const arrow = document.getElementById('cart-arrow');
-            if(list.classList.contains('hidden')) {
-                list.classList.remove('hidden'); list.classList.add('flex','flex-col');
-                arrow.classList.add('rotate-180');
-            } else {
-                list.classList.add('hidden'); list.classList.remove('flex','flex-col');
-                arrow.classList.remove('rotate-180');
-            }
+            const list = document.getElementById('cart-list'); const arrow = document.getElementById('cart-arrow');
+            if(list.classList.contains('hidden')) { list.classList.remove('hidden'); list.classList.add('flex','flex-col'); arrow.classList.add('rotate-180'); } 
+            else { list.classList.add('hidden'); list.classList.remove('flex','flex-col'); arrow.classList.remove('rotate-180'); }
         };
 
         document.getElementById('cat-search').addEventListener('input', () => renderCatalog());
@@ -429,7 +389,6 @@
         // SUBMIT
         document.getElementById('btn-launch').onclick = async () => {
             const now = new Date();
-            // Folio: REQ-AAMMDD-HHMMSS
             const folio = `REQ-${now.getFullYear().toString().slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
             const cc = document.getElementById('req-cc').value;
             const reason = document.getElementById('req-reason').value.trim();
@@ -443,33 +402,15 @@
 
             try {
                 const proms = cart.map(item => addDoc(collection(db, 'requi_toolcrib', 'data', 'requisitions'), {
-                    numRequi: folio,
-                    fecha: now.toISOString().split('T')[0],
-                    empleadoId: "AUTO-BOT",
-                    nombre: "Comando Remoto",
-                    articulo: `[${item.num}] - ${item.nom} - ${item.qty} pz`,
-                    status: 'Pendiente',
-                    timestamp: now,
-                    // Robot Data
-                    robot_partNumber: item.num,
-                    robot_qty: item.qty,
-                    robot_costCenter: cc,
-                    robot_reason: reason,
-                    robot_status: 'PENDIENTE'
+                    numRequi: folio, fecha: now.toISOString().split('T')[0], empleadoId: "AUTO-BOT", nombre: "Comando Remoto", articulo: `[${item.num}] - ${item.nom} - ${item.qty} pz`, status: 'Pendiente', timestamp: now,
+                    robot_partNumber: item.num, robot_qty: item.qty, robot_costCenter: cc, robot_reason: reason, robot_status: 'PENDIENTE'
                 }));
                 await Promise.all(proms);
-                cart = []; window.renderCart();
-                document.getElementById('req-reason').value = "";
-                
-                // Mostrar el historial automáticamente para ver la nueva requi
+                cart = []; updateAllViews(); document.getElementById('req-reason').value = "";
                 document.getElementById('history-modal').classList.remove('hidden');
-                
                 showToast(`Enviado: ${folio}`);
             } catch (e) { console.error(e); alert(e.message); } 
-            finally { 
-                btn.disabled = false; 
-                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-cyan-400"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg> ENVIAR REQUISICIÓN`; 
-            }
+            finally { btn.disabled = false; btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-cyan-400"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg> ENVIAR REQUISICIÓN`; }
         };
 
         function showToast(msg) {
