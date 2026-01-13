@@ -256,7 +256,7 @@
             } catch(e) { console.error(e); alert("Error al borrar: " + e.message); }
         };
 
-        // HISTORIAL MEJORADO + HORA DE AUTORIZACIÓN ⏱️
+        // HISTORIAL MEJORADO + HORA DE AUTORIZACIÓN (UTC FIX) ⏱️
         function listenHistory() {
             const q = query(collection(db, 'requi_toolcrib', 'data', 'requisitions'), where("empleadoId", "==", "AUTO-BOT"), orderBy("timestamp", "desc"), limit(50));
             onSnapshot(q, (snapshot) => {
@@ -296,10 +296,10 @@
                     // Fechas
                     const createStr = g.fecha.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
                     
-                    // Lógica para mostrar la fecha de autorización SI existe
+                    // CORRECCIÓN DE HORA: Se añade timeZone: 'UTC' para cancelar el desfase del robot
                     let authHtml = '';
                     if (g.authDate) {
-                        const authStr = g.authDate.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+                        const authStr = g.authDate.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit', timeZone: 'UTC' });
                         authHtml = `<div class="text-[10px] font-bold text-green-700 mt-1 flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded w-fit">✅ Aut: ${authStr}</div>`;
                     }
 
@@ -310,7 +310,8 @@
                                 <div class="font-bold text-slate-800 text-sm leading-tight">${g.folio}</div>
                                 ${folioHtml}
                                 <div class="text-xs text-slate-400 mt-0.5">Creada: ${createStr}</div>
-                                ${authHtml} </div>
+                                ${authHtml}
+                            </div>
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${statusText}</span>
                         </div>
                         <div class="p-2 space-y-2">
