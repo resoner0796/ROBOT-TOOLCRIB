@@ -59,6 +59,9 @@
                 <div id="auth-container">
                     <button id="btn-login" class="text-sm bg-cyan-600 hover:bg-cyan-500 px-3 py-1.5 rounded font-bold transition">Entrar</button>
                     <div id="user-info" class="hidden flex items-center gap-3">
+                        <button id="btn-enable-notif" class="hidden text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded transition flex items-center gap-1 border border-indigo-400">
+                            🔔 Avisos
+                        </button>
                         <button id="btn-logout" class="text-xs text-red-400 hover:text-red-300 border border-slate-700 px-2 py-1 rounded">Salir</button>
                     </div>
                 </div>
@@ -174,20 +177,23 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, query, orderBy, limit, where, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, query, orderBy, limit, where, writeBatch, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
 
         // CONFIG
         const app = initializeApp({ apiKey: "AIzaSyDahnSPvBNTYot00JCn5CBjggAYFVGhbjE", authDomain: "panel-logistica-simple.firebaseapp.com", projectId: "panel-logistica-simple", storageBucket: "panel-logistica-simple.firebasestorage.app", messagingSenderId: "528779971851", appId: "1:528779971851:web:29ed933e7c7fd997a4e60e" });
         const auth = getAuth(app);
         const db = getFirestore(app);
         const BASE_IMG_URL = "https://resoner0796.github.io/Requisiciones-ToolCrib/catalogo/"; 
+        const VAPID_KEY = "BOL35dPQwmGffx38z5uTMD8SYaCZeEojXF6CzYMFg1uVEAaHBNrwBRjgOXa-v31oebCyn37w3fnmepnsLFlz8JU";
+        const messaging = getMessaging(app);
 
         // VARIABLES
         let cart = [];
         let articles = [];
         let listsMap = new Map();
         let currentUser = null;
-        const LIMIT_USD = 500; // 🛑 LÍMITE DE $500
+        const LIMIT_USD = 500;
 
         // AUTH
         onAuthStateChanged(auth, (user) => {
@@ -195,6 +201,14 @@
             if (user) {
                 document.getElementById('user-info').classList.remove('hidden');
                 document.getElementById('btn-login').classList.add('hidden');
+                
+                // Mostrar botón de notificaciones si no están activas y es compatible
+                if ('Notification' in window && Notification.permission === 'default') {
+                    document.getElementById('btn-enable-notif').classList.remove('hidden');
+                } else if ('Notification' in window && Notification.permission === 'granted') {
+                    document.getElementById('btn-enable-notif').classList.add('hidden');
+                }
+
                 loadData();
                 listenHistory();
             } else {
@@ -213,6 +227,35 @@
         };
         document.getElementById('btn-login').onclick = () => document.getElementById('login-modal').classList.remove('hidden');
         document.getElementById('btn-logout').onclick = () => signOut(auth);
+
+        // --- NOTIFICACIONES ---
+        async function activarNotificaciones() {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+                    if (token) {
+                        // Guardar token en Firebase
+                        await setDoc(doc(db, "fcm_tokens", token), {
+                            token: token,
+                            usuario: currentUser ? currentUser.email : "Anonimo",
+                            fecha: new Date(),
+                            device: navigator.userAgent
+                        });
+                        showToast("🔔 Notificaciones Activadas");
+                        document.getElementById('btn-enable-notif').classList.add('hidden');
+                    } else {
+                        showToast("No se pudo obtener el token", "error");
+                    }
+                } else {
+                    showToast("Permiso denegado", "error");
+                }
+            } catch (error) {
+                console.error("Error FCM:", error);
+                showToast("Error al activar notificaciones", "error");
+            }
+        }
+        document.getElementById('btn-enable-notif').onclick = activarNotificaciones;
 
         // DATA
         function loadData() {
@@ -260,7 +303,7 @@
             } catch(e) { console.error(e); alert("Error al borrar: " + e.message); }
         };
 
-        // HISTORIAL MEJORADO + PRECIO TOTAL + HORAS UTC FIX ⏱️💰
+        // HISTORIAL
         function listenHistory() {
             const q = query(collection(db, 'requi_toolcrib', 'data', 'requisitions'), where("empleadoId", "==", "AUTO-BOT"), orderBy("timestamp", "desc"), limit(50));
             onSnapshot(q, (snapshot) => {
@@ -283,14 +326,12 @@
                 });
 
                 list.innerHTML = Array.from(groups.values()).map(g => {
-                    // Badges de Status
                     let badgeClass = 'bg-gray-100 text-gray-600';
                     let statusText = g.status.toUpperCase();
                     if (statusText.includes('AUTORIZA') || statusText === 'COMPLETADO') badgeClass = 'bg-green-100 text-green-700 border border-green-200';
                     else if (statusText.includes('PENDIENTE')) badgeClass = 'bg-yellow-50 text-yellow-700 border border-yellow-200';
                     else if (statusText.includes('PROCESANDO')) badgeClass = 'bg-blue-50 text-blue-700 border border-blue-200';
 
-                    // Folio Portal
                     const folioPortal = g.items[0].folio_portal || null;
                     const folioHtml = folioPortal 
                         ? `<div class="text-[10px] font-bold text-green-600 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> TC: ${folioPortal}</div>`
@@ -298,14 +339,13 @@
 
                     const createStr = g.fecha.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
                     
-                    // Fecha Autorización (UTC FIX)
                     let authHtml = '';
                     if (g.authDate) {
                         const authStr = g.authDate.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit', timeZone: 'UTC' });
                         authHtml = `<div class="text-[10px] font-bold text-green-700 mt-1 flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded w-fit">✅ Aut: ${authStr}</div>`;
                     }
 
-                    // --- CÁLCULO DE TOTAL DE LA REQUISICIÓN ($) ---
+                    // Total
                     let totalRequi = 0;
                     g.items.forEach(item => {
                         const precio = Number(item.robot_price) || 0;
@@ -351,7 +391,7 @@
             });
         }
 
-        // RENDER CATALOG (CON PRECIO EN VERDE)
+        // RENDER CATALOG
         function renderCatalog() {
             const txt = document.getElementById('cat-search').value.toLowerCase();
             const cat = document.getElementById('cat-filter').value;
@@ -374,9 +414,7 @@
                 let img = "https://placehold.co/200x200/f1f5f9/94a3b8?text=N/A";
                 if (a.img) img = a.img.startsWith('http') ? a.img : BASE_IMG_URL + a.img;
                 
-                // PRECIO
                 const precio = a.precio ? Number(a.precio).toFixed(2) : '0.00';
-
                 const cartItem = cart.find(c => c.num === a.num);
                 let actionHtml = '';
 
@@ -421,7 +459,7 @@
             }).join('');
         }
 
-        // RENDER CART (SUMATORIA Y LÍMITE $500) 💰🛑
+        // RENDER CART
         window.renderCart = () => {
             const list = document.getElementById('cart-list');
             const count = document.getElementById('cart-count');
@@ -438,7 +476,6 @@
                 return;
             }
             
-            // CÁLCULO DE TOTALES
             let total = 0;
             cart.forEach(item => {
                 total += (item.qty * (Number(item.precio) || 0));
@@ -447,7 +484,6 @@
             count.innerText = cart.length;
             totalDisplay.innerText = `$${total.toFixed(2)}`;
 
-            // VALIDACIÓN DE LÍMITE 🛑
             if (total > LIMIT_USD) {
                 btnLaunch.disabled = true;
                 btnLaunch.className = "w-full bg-red-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg cursor-not-allowed flex items-center justify-center gap-2 opacity-100";
@@ -460,7 +496,6 @@
             
             list.innerHTML = cart.map((item, idx) => {
                 const subtotal = (item.qty * (Number(item.precio) || 0)).toFixed(2);
-                
                 return `
                 <div class="bg-white border border-slate-200 rounded-lg p-3 flex flex-col gap-2 shadow-sm">
                     <div class="flex justify-between items-start">
@@ -472,11 +507,8 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
                         </button>
                     </div>
-                    
                     <div class="flex justify-between items-center">
-                        <div class="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
-                            $${subtotal}
-                        </div>
+                        <div class="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">$${subtotal}</div>
                         <div class="flex items-center justify-between bg-slate-50 rounded-lg p-1">
                             <button onclick="window.decrementQty('${item.num}')" class="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-md text-slate-500 hover:text-cyan-600 shadow-sm active:bg-slate-50">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
@@ -487,8 +519,7 @@
                             </button>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
             }).join('');
         };
 
@@ -527,7 +558,7 @@
         document.getElementById('cat-filter').addEventListener('change', () => renderCatalog());
         document.getElementById('list-filter').addEventListener('change', () => renderCatalog());
 
-        // SUBMIT (AHORA GUARDA EL PRECIO PARA EL HISTORIAL)
+        // SUBMIT
         document.getElementById('btn-launch').onclick = async () => {
             const now = new Date();
             const folio = `REQ-${now.getFullYear().toString().slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
@@ -555,7 +586,7 @@
                     robot_costCenter: cc,
                     robot_reason: reason,
                     robot_description: item.nom, 
-                    robot_price: item.precio || 0, // <--- GUARDAMOS PRECIO
+                    robot_price: item.precio || 0,
                     robot_status: 'PENDIENTE'
                 }));
                 await Promise.all(proms);
