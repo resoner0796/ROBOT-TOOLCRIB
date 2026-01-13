@@ -187,7 +187,7 @@
         let articles = [];
         let listsMap = new Map();
         let currentUser = null;
-        const LIMIT_USD = 500; // 🛑 LÍMITE DE GASTO
+        const LIMIT_USD = 500; // 🛑 LÍMITE DE $500
 
         // AUTH
         onAuthStateChanged(auth, (user) => {
@@ -260,7 +260,7 @@
             } catch(e) { console.error(e); alert("Error al borrar: " + e.message); }
         };
 
-        // HISTORIAL MEJORADO
+        // HISTORIAL MEJORADO + PRECIO TOTAL + HORAS UTC FIX ⏱️💰
         function listenHistory() {
             const q = query(collection(db, 'requi_toolcrib', 'data', 'requisitions'), where("empleadoId", "==", "AUTO-BOT"), orderBy("timestamp", "desc"), limit(50));
             onSnapshot(q, (snapshot) => {
@@ -283,12 +283,14 @@
                 });
 
                 list.innerHTML = Array.from(groups.values()).map(g => {
+                    // Badges de Status
                     let badgeClass = 'bg-gray-100 text-gray-600';
                     let statusText = g.status.toUpperCase();
                     if (statusText.includes('AUTORIZA') || statusText === 'COMPLETADO') badgeClass = 'bg-green-100 text-green-700 border border-green-200';
                     else if (statusText.includes('PENDIENTE')) badgeClass = 'bg-yellow-50 text-yellow-700 border border-yellow-200';
                     else if (statusText.includes('PROCESANDO')) badgeClass = 'bg-blue-50 text-blue-700 border border-blue-200';
 
+                    // Folio Portal
                     const folioPortal = g.items[0].folio_portal || null;
                     const folioHtml = folioPortal 
                         ? `<div class="text-[10px] font-bold text-green-600 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> TC: ${folioPortal}</div>`
@@ -296,11 +298,22 @@
 
                     const createStr = g.fecha.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
                     
+                    // Fecha Autorización (UTC FIX)
                     let authHtml = '';
                     if (g.authDate) {
                         const authStr = g.authDate.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit', timeZone: 'UTC' });
                         authHtml = `<div class="text-[10px] font-bold text-green-700 mt-1 flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded w-fit">✅ Aut: ${authStr}</div>`;
                     }
+
+                    // --- CÁLCULO DE TOTAL DE LA REQUISICIÓN ($) ---
+                    let totalRequi = 0;
+                    g.items.forEach(item => {
+                        const precio = Number(item.robot_price) || 0;
+                        const qty = Number(item.robot_qty) || 0;
+                        totalRequi += (precio * qty);
+                    });
+                    const totalStr = totalRequi > 0 ? `$${totalRequi.toFixed(2)}` : 'N/A';
+                    const totalColor = totalRequi > 500 ? 'text-red-500' : 'text-slate-600';
 
                     return `
                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-3">
@@ -311,7 +324,10 @@
                                 <div class="text-xs text-slate-400 mt-0.5">Creada: ${createStr}</div>
                                 ${authHtml}
                             </div>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${statusText}</span>
+                            <div class="text-right">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass} block mb-1">${statusText}</span>
+                                <div class="text-xs font-bold ${totalColor}">Total: ${totalStr}</div>
+                            </div>
                         </div>
                         <div class="p-2 space-y-2">
                             ${g.items.map(i => `
@@ -335,7 +351,7 @@
             });
         }
 
-        // RENDER CATALOG
+        // RENDER CATALOG (CON PRECIO EN VERDE)
         function renderCatalog() {
             const txt = document.getElementById('cat-search').value.toLowerCase();
             const cat = document.getElementById('cat-filter').value;
@@ -405,7 +421,7 @@
             }).join('');
         }
 
-        // RENDER CART
+        // RENDER CART (SUMATORIA Y LÍMITE $500) 💰🛑
         window.renderCart = () => {
             const list = document.getElementById('cart-list');
             const count = document.getElementById('cart-count');
@@ -416,7 +432,6 @@
                 list.innerHTML = '<div class="text-center p-8 text-slate-300 text-sm italic">Tu carrito está vacío.</div>';
                 count.innerText = '0';
                 totalDisplay.innerText = '$0.00';
-                // Reset del botón
                 btnLaunch.disabled = false;
                 btnLaunch.className = "w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2";
                 btnLaunch.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-cyan-400"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg> ENVIAR REQUISICIÓN`;
@@ -512,7 +527,7 @@
         document.getElementById('cat-filter').addEventListener('change', () => renderCatalog());
         document.getElementById('list-filter').addEventListener('change', () => renderCatalog());
 
-        // SUBMIT
+        // SUBMIT (AHORA GUARDA EL PRECIO PARA EL HISTORIAL)
         document.getElementById('btn-launch').onclick = async () => {
             const now = new Date();
             const folio = `REQ-${now.getFullYear().toString().slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
@@ -540,6 +555,7 @@
                     robot_costCenter: cc,
                     robot_reason: reason,
                     robot_description: item.nom, 
+                    robot_price: item.precio || 0, // <--- GUARDAMOS PRECIO
                     robot_status: 'PENDIENTE'
                 }));
                 await Promise.all(proms);
