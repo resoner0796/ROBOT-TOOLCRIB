@@ -265,6 +265,7 @@
         let listsMap = new Map();
         let currentUser = null;
         const LIMIT_USD = 500;
+        let favorites = JSON.parse(localStorage.getItem('tc_bot_favorites')) || [];
 
         // --- LÓGICA DEL SWITCH ---
         const toggleBtn = document.getElementById('toggle-mode');
@@ -392,14 +393,17 @@
         }
         document.getElementById('btn-enable-notif').onclick = activarNotificaciones;
 
-        // DATA
+        // DATA (ACTUALIZADA CON OPCIÓN DE FAVORITOS)
         function loadData() {
             // 1. Cargar Listas
             onSnapshot(collection(db, 'requi_toolcrib', 'data', 'lists'), (snap) => {
                 listsMap.clear();
                 const select = document.getElementById('list-filter');
                 const val = select.value;
-                select.innerHTML = '<option value="Todos">⭐ Listas</option>';
+                
+                // AQUÍ AGREGAMOS LA OPCIÓN DE FAVORITOS FIJA
+                select.innerHTML = '<option value="Todos">⭐ Listas</option><option value="Favoritos">❤️ Mis Favoritos</option>';
+                
                 snap.forEach(doc => {
                     const l = doc.data();
                     listsMap.set(doc.id, l.name);
@@ -409,7 +413,7 @@
                 if (articles.length > 0) renderCatalog();
             });
 
-            // 2. Cargar Artículos
+            // 2. Cargar Artículos (Igual que antes)
             onSnapshot(collection(db, 'requi_toolcrib', 'data', 'articles'), (snap) => {
                 articles = [];
                 const cats = new Set();
@@ -426,7 +430,7 @@
                 renderCatalog();
             });
 
-            // 3. Cargar Empleados (Para el Autocomplete)
+            // 3. Cargar Empleados (Igual que antes)
             onSnapshot(collection(db, 'requi_toolcrib', 'data', 'employees'), (snap) => {
                 employees = [];
                 snap.forEach(doc => {
@@ -661,7 +665,28 @@
             });
         }
 
-        // RENDER CATALOG (ACTUALIZADO PARA VARIANTES)
+// --- FUNCIÓN NUEVA: CONTROL DE FAVORITOS ---
+        window.toggleFavorite = (docId) => {
+            const idx = favorites.indexOf(docId);
+            
+            if (idx > -1) {
+                // Si ya existe, lo quitamos
+                favorites.splice(idx, 1);
+                showToast("Eliminado de favoritos", "info");
+            } else {
+                // Si no existe, lo agregamos
+                favorites.push(docId);
+                showToast("❤️ Agregado a favoritos");
+            }
+            
+            // Guardar en el celular permanentemente
+            localStorage.setItem('tc_bot_favorites', JSON.stringify(favorites));
+            
+            // Refrescar para ver el cambio de color de la estrella
+            renderCatalog();
+        };
+
+// RENDER CATALOG (ACTUALIZADO CON FAVORITOS)
         function renderCatalog() {
             const txt = document.getElementById('cat-search').value.toLowerCase();
             const cat = document.getElementById('cat-filter').value;
@@ -669,14 +694,28 @@
             const container = document.getElementById('catalog-grid');
             
             let res = articles;
+            
+            // --- FILTROS ---
             if (cat !== 'Todos') res = res.filter(a => a.cat === cat);
-            if (lst !== 'Todos') res = res.filter(a => a.assignedLists && a.assignedLists.includes(lst));
+            
+            // LÓGICA DE LISTAS O FAVORITOS
+            if (lst === 'Favoritos') {
+                // Filtramos solo los que estén en el array de favoritos
+                res = res.filter(a => favorites.includes(a.id));
+            } else if (lst !== 'Todos') {
+                // Filtramos por listas de Firebase
+                res = res.filter(a => a.assignedLists && a.assignedLists.includes(lst));
+            }
+
             if (txt) res = res.filter(a => a.num.toLowerCase().includes(txt) || a.nom.toLowerCase().includes(txt));
 
             res.sort((a,b) => a.nom.localeCompare(b.nom));
 
             if (res.length === 0) {
-                container.innerHTML = '<div class="col-span-full text-center p-10 text-slate-400 italic">Sin resultados.</div>';
+                const msg = lst === 'Favoritos' 
+                    ? 'No tienes favoritos guardados aún. Dale click a la ⭐ en los artículos.' 
+                    : 'Sin resultados.';
+                container.innerHTML = `<div class="col-span-full text-center p-10 text-slate-400 italic">${msg}</div>`;
                 return;
             }
 
@@ -686,15 +725,16 @@
                 
                 const precio = a.precio ? Number(a.precio).toFixed(2) : '0.00';
                 
-                // --- LÓGICA DE INTERFAZ DINÁMICA ---
+                // --- LÓGICA DE ESTRELLA (FAVORITO) ---
+                const isFav = favorites.includes(a.id);
+                // Si es favorito, estrella amarilla y rellena. Si no, gris y vacía.
+                const starColor = isFav ? "text-yellow-400 fill-current" : "text-slate-300 hover:text-yellow-400";
+                
+                // --- LÓGICA DE UI (Variantes o Normal) ---
                 let uiHtml = '';
 
-                // CASO A: TIENE VARIANTES (Tallas, etc.)
                 if (a.hasVariants && Array.isArray(a.variants) && a.variants.length > 0) {
-                    
-                    // Generamos las opciones del Select
                     const options = a.variants.map(v => `<option value="${v.code}|${v.name}">${v.name}</option>`).join('');
-                    
                     uiHtml = `
                     <div class="flex flex-col gap-2 w-full">
                         <select id="select-${a.id}" class="w-full text-sm border-slate-300 rounded-lg focus:border-cyan-500 focus:ring-cyan-500 py-2">
@@ -706,13 +746,9 @@
                             AGREGAR
                         </button>
                     </div>`;
-
-                // CASO B: PRODUCTO NORMAL (Sin variantes)
                 } else {
                     const cartItem = cart.find(c => c.num === a.num);
-                    
                     if (cartItem) {
-                        // Ya está en carrito: mostramos controles +/-
                         uiHtml = `
                         <div class="flex items-center justify-between bg-slate-100 rounded-lg p-1.5 gap-2 w-full">
                             <button onclick="window.decrementQty('${a.num}')" class="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-cyan-600 shadow-sm active:bg-slate-50">
@@ -724,7 +760,6 @@
                             </button>
                         </div>`;
                     } else {
-                        // Botón normal de agregar
                         uiHtml = `
                         <button onclick="window.addToCart('${a.num}')" class="w-full bg-white border border-slate-300 hover:border-cyan-500 hover:text-cyan-600 text-slate-600 text-sm font-bold py-2.5 rounded-lg transition shadow-sm flex items-center justify-center gap-2 active:bg-cyan-50 active:scale-[0.98]">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
@@ -734,7 +769,14 @@
                 }
                 
                 return `
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition h-full min-h-[340px]">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition h-full min-h-[340px] relative">
+                    
+                    <button onclick="window.toggleFavorite('${a.id}')" class="absolute top-2 right-2 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm z-10 transition-transform active:scale-90 border border-slate-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 ${starColor} transition-colors" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.31h5.362c.518 0 .73.684.34 1.002l-4.34 3.161a.562.562 0 00-.18.618l2.125 5.111a.563.563 0 01-.84.622l-4.34-3.161a.563.563 0 00-.65 0l-4.34 3.161a.563.563 0 01-.84-.622l2.125-5.111a.563.563 0 00-.18-.618l-4.34-3.161a.563.563 0 01.34-1.002h5.362a.563.563 0 00.475-.31l2.125-5.111z" />
+                        </svg>
+                    </button>
+
                     <div class="aspect-square w-full p-4 bg-white flex items-center justify-center overflow-hidden relative border-b border-slate-50">
                          <img src="${img}" class="object-contain w-full h-full max-h-[160px]" onerror="this.src='https://placehold.co/200x200/f1f5f9/94a3b8?text=Error'">
                     </div>
