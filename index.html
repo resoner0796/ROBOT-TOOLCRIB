@@ -7,7 +7,7 @@
     <title>TC Bot Commander 🤖</title>
     
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.PNG">
+    <link rel="apple-touch-icon" href="icon-192.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -48,6 +48,10 @@
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
+
+        /* Switch Toggle (NUEVO) */
+        .toggle-checkbox:checked { right: 0; border-color: #0ea5e9; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #0ea5e9; }
     </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-900 h-screen flex flex-col overflow-hidden">
@@ -89,6 +93,25 @@
             
             <div class="p-4 border-b border-slate-100 flex-shrink-0 bg-slate-50">
                 <form id="bot-form" class="space-y-3">
+                    
+                    <div class="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                        <span class="text-xs font-bold text-slate-600">PEDIR PARA OTRO EMPLEADO</span>
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="toggle" id="toggle-mode" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 left-0 transition-all duration-300"/>
+                            <label for="toggle-mode" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+
+                    <div id="target-employee-container" class="hidden animate-scale-in">
+                        <label class="block text-xs font-bold text-purple-600 mb-1">NÚMERO DE EMPLEADO (DESTINO)</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-purple-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            </span>
+                            <input type="number" id="req-target-employee" class="w-full pl-9 rounded border-purple-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 h-10 bg-purple-50" placeholder="Ej. 682509">
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-2 md:grid-cols-1 gap-2">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">CENTRO COSTOS</label>
@@ -228,6 +251,20 @@
         let listsMap = new Map();
         let currentUser = null;
         const LIMIT_USD = 500;
+
+        // --- LÓGICA DEL SWITCH (NUEVO) ---
+        const toggleBtn = document.getElementById('toggle-mode');
+        const targetContainer = document.getElementById('target-employee-container');
+        const targetInput = document.getElementById('req-target-employee');
+
+        toggleBtn.addEventListener('change', () => {
+            if(toggleBtn.checked) {
+                targetContainer.classList.remove('hidden');
+            } else {
+                targetContainer.classList.add('hidden');
+                targetInput.value = ""; // Limpiar si se apaga
+            }
+        });
 
         // --- SISTEMA DE MODALES PERSONALIZADOS ---
         const modal = document.getElementById('generic-modal');
@@ -431,6 +468,7 @@
                             authDate: d.fecha_autorizacion ? d.fecha_autorizacion.toDate() : null,
                             status: d.status || d.robot_status || 'Pendiente', 
                             empleado: d.nombre || 'Desconocido', 
+                            targetEmp: d.robot_target_employee || null, // <--- NUEVO
                             items: [] 
                         }); 
                     }
@@ -451,6 +489,11 @@
 
                     const createStr = g.fecha.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
                     
+                    // MOSTRAR DESTINO SI EXISTE
+                    const targetHtml = g.targetEmp 
+                        ? `<div class="text-[10px] text-purple-600 font-bold bg-purple-50 px-1.5 py-0.5 rounded w-fit mt-0.5">🎯 Para: ${g.targetEmp}</div>`
+                        : '';
+
                     let authHtml = '';
                     if (g.authDate) {
                         const authStr = g.authDate.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit', timeZone: 'UTC' });
@@ -481,6 +524,7 @@
                                     ${folioHtml}
                                     <div class="text-xs text-slate-400 mt-0.5">Creada: ${createStr}</div>
                                     <div class="text-[10px] text-cyan-600 font-bold mt-0.5">👤 ${g.empleado}</div>
+                                    ${targetHtml}
                                     ${authHtml}
                                 </div>
                             </div>
@@ -687,14 +731,20 @@
         document.getElementById('cat-filter').addEventListener('change', () => renderCatalog());
         document.getElementById('list-filter').addEventListener('change', () => renderCatalog());
 
-        // SUBMIT (GUARDADO CON USUARIO REAL)
+        // SUBMIT (GUARDADO CON USUARIO REAL + DESTINO)
         document.getElementById('btn-launch').onclick = async () => {
             const now = new Date();
             const folio = `REQ-${now.getFullYear().toString().slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
             const cc = document.getElementById('req-cc').value;
             const reason = document.getElementById('req-reason').value.trim();
+            const toggle = document.getElementById('toggle-mode'); // SWITCH
+            const targetEmp = document.getElementById('req-target-employee').value.trim(); // INPUT
 
             if (!currentUser) return customAlert("Atención", "Debes iniciar sesión para enviar requisiciones.");
+            
+            // Validación de modo tercero
+            if (toggle.checked && !targetEmp) return customAlert("Falta dato", "Por favor ingresa el Número de Empleado destino.");
+
             if (!cc || !reason) return customAlert("Faltan datos", "Por favor selecciona un Centro de Costos e ingresa una Razón.");
             if (cart.length === 0) return customAlert("Carrito vacío", "Agrega artículos antes de enviar.");
 
@@ -709,8 +759,10 @@
                 const proms = cart.map(item => addDoc(collection(db, 'requi_toolcrib', 'data', 'requisitions'), {
                     numRequi: folio,
                     fecha: now.toISOString().split('T')[0],
-                    empleadoId: userEmail, // EMAIL REAL
-                    nombre: userName,      // NOMBRE REAL
+                    empleadoId: userEmail, 
+                    nombre: userName,
+                    // Si el switch está prendido, guardamos el número, si no, null
+                    robot_target_employee: toggle.checked ? targetEmp : null, 
                     articulo: `[${item.num}] - ${item.nom} - ${item.qty} pz`,
                     status: 'Pendiente',
                     timestamp: now,
@@ -725,6 +777,7 @@
                 await Promise.all(proms);
                 cart = []; updateAllViews();
                 document.getElementById('req-reason').value = "";
+                document.getElementById('req-target-employee').value = ""; // Limpiar input
                 document.getElementById('history-modal').classList.remove('hidden');
                 showToast(`Enviado: ${folio}`);
             } catch (e) { console.error(e); customAlert("Error al enviar", e.message); } 
