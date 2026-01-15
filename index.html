@@ -102,14 +102,27 @@
                         </div>
                     </div>
 
-                    <div id="target-employee-container" class="hidden animate-scale-in">
-                        <label class="block text-xs font-bold text-purple-600 mb-1">NÚMERO DE EMPLEADO (DESTINO)</label>
+                    <div id="target-employee-container" class="hidden animate-scale-in relative">
+                        <label class="block text-xs font-bold text-purple-600 mb-1">EMPLEADO DESTINO (BUSCAR O ESCRIBIR)</label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-purple-400">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-purple-400 pointer-events-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                             </span>
-                            <input type="number" id="req-target-employee" class="w-full pl-9 rounded border-purple-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 h-10 bg-purple-50" placeholder="Ej. 682509">
+                            
+                            <input type="text" id="req-target-search" autocomplete="off" 
+                                class="w-full pl-9 pr-8 rounded border-purple-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 h-10 bg-purple-50 text-purple-900 placeholder-purple-300" 
+                                placeholder="Nombre o ID...">
+                            
+                            <input type="hidden" id="req-target-real-id">
+
+                            <button type="button" id="btn-clear-target" class="hidden absolute inset-y-0 right-0 pr-2 flex items-center text-purple-400 hover:text-red-500 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                                </svg>
+                            </button>
                         </div>
+                        
+                        <div id="target-results" class="hidden absolute z-50 mt-1 w-full bg-white shadow-xl max-h-48 rounded-lg py-1 ring-1 ring-black ring-opacity-5 overflow-auto border border-purple-100"></div>
                     </div>
 
                     <div class="grid grid-cols-2 md:grid-cols-1 gap-2">
@@ -228,12 +241,11 @@
         import { getFirestore, collection, onSnapshot, addDoc, query, orderBy, limit, where, writeBatch, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
 
-        // --- 1. REGISTRO DEL SERVICE WORKER (PWA + PUSH UNIFICADO) ---
-        // Aquí está el truco: registramos DIRECTAMENTE el archivo de Firebase
+        // --- 1. REGISTRO DEL SERVICE WORKER ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./firebase-messaging-sw.js')
-                    .then(reg => console.log('✅ Service Worker Maestro (SW + FCM) registrado:', reg.scope))
+                    .then(reg => console.log('✅ Service Worker registrado:', reg.scope))
                     .catch(err => console.log('❌ Error al registrar SW:', err));
             });
         }
@@ -249,6 +261,7 @@
         // VARIABLES
         let cart = [];
         let articles = [];
+        let employees = []; // <-- Variable para los empleados
         let listsMap = new Map();
         let currentUser = null;
         const LIMIT_USD = 500;
@@ -256,14 +269,17 @@
         // --- LÓGICA DEL SWITCH ---
         const toggleBtn = document.getElementById('toggle-mode');
         const targetContainer = document.getElementById('target-employee-container');
-        const targetInput = document.getElementById('req-target-employee');
+        const targetSearch = document.getElementById('req-target-search');
+        const targetRealId = document.getElementById('req-target-real-id');
 
         toggleBtn.addEventListener('change', () => {
             if(toggleBtn.checked) {
                 targetContainer.classList.remove('hidden');
             } else {
                 targetContainer.classList.add('hidden');
-                targetInput.value = ""; 
+                targetSearch.value = ""; 
+                targetRealId.value = "";
+                document.getElementById('btn-clear-target').classList.add('hidden');
             }
         });
 
@@ -333,7 +349,7 @@
         document.getElementById('btn-login').onclick = () => document.getElementById('login-modal').classList.remove('hidden');
         document.getElementById('btn-logout').onclick = () => signOut(auth);
 
-        // --- 2. ACTIVAR NOTIFICACIONES (CORREGIDO) ---
+        // --- 2. ACTIVAR NOTIFICACIONES ---
         async function activarNotificaciones() {
             const btn = document.getElementById('btn-enable-notif');
             try {
@@ -341,10 +357,7 @@
                 if (permission === 'granted') {
                     btn.innerText = "⏳..."; 
                     
-                    // Esperamos a que el SW que registramos al inicio esté listo
                     const registration = await navigator.serviceWorker.ready;
-
-                    // Le pasamos ese registro YA EXISTENTE a Firebase
                     const token = await getToken(messaging, { 
                         vapidKey: VAPID_KEY, 
                         serviceWorkerRegistration: registration 
@@ -368,8 +381,6 @@
                 }
             } catch (error) {
                 console.error("Error detallado:", error);
-                
-                // Si el error es "no active service worker", intentamos recargar
                 if(error.message && error.message.includes('active service worker')) {
                     alert("Por favor recarga la página para activar el sistema.");
                     window.location.reload();
@@ -383,6 +394,7 @@
 
         // DATA
         function loadData() {
+            // 1. Cargar Listas
             onSnapshot(collection(db, 'requi_toolcrib', 'data', 'lists'), (snap) => {
                 listsMap.clear();
                 const select = document.getElementById('list-filter');
@@ -397,6 +409,7 @@
                 if (articles.length > 0) renderCatalog();
             });
 
+            // 2. Cargar Artículos
             onSnapshot(collection(db, 'requi_toolcrib', 'data', 'articles'), (snap) => {
                 articles = [];
                 const cats = new Set();
@@ -412,7 +425,78 @@
                 select.value = val;
                 renderCatalog();
             });
+
+            // 3. Cargar Empleados (Para el Autocomplete)
+            onSnapshot(collection(db, 'requi_toolcrib', 'data', 'employees'), (snap) => {
+                employees = [];
+                snap.forEach(doc => {
+                    employees.push(doc.data());
+                });
+            });
         }
+
+        // --- LÓGICA DE BUSCADOR DE EMPLEADOS ---
+        const empInput = document.getElementById('req-target-search');
+        const empResults = document.getElementById('target-results');
+        const empHiddenId = document.getElementById('req-target-real-id');
+        const empClear = document.getElementById('btn-clear-target');
+
+        // Al escribir en el input
+        empInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase().trim();
+            empHiddenId.value = ""; // Si escribe, borramos el ID oculto temporalmente
+            
+            if (!term) {
+                empResults.classList.add('hidden');
+                empClear.classList.add('hidden');
+                return;
+            }
+            empClear.classList.remove('hidden');
+
+            // Buscamos coincidencias (por nombre O por número)
+            const matches = employees.filter(emp => 
+                (emp.nombre && emp.nombre.toLowerCase().includes(term)) || 
+                (emp.id && emp.id.toString().includes(term))
+            ).slice(0, 5); // Máximo 5 resultados
+
+            if (matches.length > 0) {
+                empResults.innerHTML = matches.map(emp => `
+                    <div class="cursor-pointer px-4 py-2 hover:bg-purple-50 border-b border-gray-50 last:border-0 text-sm"
+                         onclick="window.selectTargetEmployee('${emp.id}', '${emp.nombre}')">
+                        <div class="font-bold text-slate-700">${emp.nombre}</div>
+                        <div class="text-xs text-purple-500 font-mono">ID: ${emp.id}</div>
+                    </div>
+                `).join('');
+                empResults.classList.remove('hidden');
+            } else {
+                empResults.classList.add('hidden');
+            }
+        });
+
+        // Cuando seleccionas a alguien de la lista
+        window.selectTargetEmployee = (id, nombre) => {
+            empHiddenId.value = id; // <--- AQUÍ GUARDAMOS EL NÚMERO
+            empInput.value = `${nombre} (${id})`; // Esto es solo visual
+            empInput.classList.add('text-green-700', 'font-bold', 'bg-green-50'); 
+            empResults.classList.add('hidden');
+        };
+
+        // Botón limpiar (X)
+        empClear.onclick = () => {
+            empInput.value = "";
+            empHiddenId.value = "";
+            empInput.classList.remove('text-green-700', 'font-bold', 'bg-green-50');
+            empResults.classList.add('hidden');
+            empClear.classList.add('hidden');
+            empInput.focus();
+        };
+
+        // Cerrar lista si das clic fuera
+        document.addEventListener('click', (e) => {
+            if (!empInput.contains(e.target) && !empResults.contains(e.target)) {
+                empResults.classList.add('hidden');
+            }
+        });
 
         // --- ELIMINAR REQUISICIÓN ---
         window.deleteRequisition = async (numRequi) => {
@@ -735,13 +819,11 @@
             }).join('');
         };
 
-// --- NUEVA FUNCIÓN PARA PROCESAR VARIANTES ---
+        // --- NUEVA FUNCIÓN PARA PROCESAR VARIANTES ---
         window.addVariantToCart = (docId) => {
-            // 1. Buscamos el artículo original en la memoria
             const originalArt = articles.find(a => a.id === docId);
             if (!originalArt) return;
 
-            // 2. Obtenemos el valor del Select (Formato: "CODIGO|NOMBRE")
             const select = document.getElementById(`select-${docId}`);
             const value = select.value;
 
@@ -750,20 +832,15 @@
                 return;
             }
 
-            // 3. Separamos el código y el nombre de la variante
             const [variantCode, variantName] = value.split('|');
 
-            // 4. CREAMOS EL ÍTEM HÍBRIDO (El Truco Maestro)
-            // Usamos el código de la variante como 'num' para que el sistema lo trate como único
             const variantItem = {
                 ...originalArt,
-                num: variantCode, // <--- AQUÍ GUARDAMOS EL CÓDIGO REAL (Ej: BTA-T30)
-                nom: `${originalArt.nom} (${variantName})`, // Ej: Bata Azul (Talla 30)
-                isVariant: true // Marca para saber que es variante
+                num: variantCode, 
+                nom: `${originalArt.nom} (${variantName})`,
+                isVariant: true
             };
 
-            // 5. Agregamos al carrito usando la lógica estándar
-            // Verificamos si ya existe ESE código específico en el carrito
             const ex = cart.find(c => c.num === variantCode);
             
             if (ex) {
@@ -774,7 +851,6 @@
                 showToast(`${variantName} agregada al carrito`);
             }
 
-            // 6. Reseteamos el select y actualizamos
             select.value = "";
             updateAllViews();
         };
@@ -784,7 +860,6 @@
             const art = articles.find(a => a.num === num);
             if (!art) return;
             
-            // Si tiene variantes y trataron de usar este método (no debería pasar por UI, pero por si acaso)
             if (art.hasVariants) {
                 showToast("Usa el selector de tallas", "info");
                 return;
@@ -829,12 +904,23 @@
             const cc = document.getElementById('req-cc').value;
             const reason = document.getElementById('req-reason').value.trim();
             const toggle = document.getElementById('toggle-mode'); // SWITCH
-            const targetEmp = document.getElementById('req-target-employee').value.trim(); // INPUT
+            
+            // --- LOGICA DE EMPLEADO DESTINO ---
+            let targetEmp = null;
+            if (toggle.checked) {
+                const searchVal = document.getElementById('req-target-search').value.trim();
+                const realId = document.getElementById('req-target-real-id').value;
+                
+                if (realId) {
+                    targetEmp = realId;
+                } else if (searchVal) {
+                    targetEmp = searchVal; 
+                }
+            }
 
             if (!currentUser) return customAlert("Atención", "Debes iniciar sesión para enviar requisiciones.");
             
-            // Validación de modo tercero
-            if (toggle.checked && !targetEmp) return customAlert("Falta dato", "Por favor ingresa el Número de Empleado destino.");
+            if (toggle.checked && !targetEmp) return customAlert("Falta dato", "Por favor busca o escribe el Número de Empleado destino.");
 
             if (!cc || !reason) return customAlert("Faltan datos", "Por favor selecciona un Centro de Costos e ingresa una Razón.");
             if (cart.length === 0) return customAlert("Carrito vacío", "Agrega artículos antes de enviar.");
@@ -842,7 +928,6 @@
             const btn = document.getElementById('btn-launch');
             btn.disabled = true; btn.innerText = "Enviando...";
 
-            // OBTENEMOS DATOS DEL USUARIO REAL
             const userEmail = currentUser.email;
             const userName = currentUser.displayName || userEmail.split('@')[0];
 
@@ -852,7 +937,6 @@
                     fecha: now.toISOString().split('T')[0],
                     empleadoId: userEmail, 
                     nombre: userName,
-                    // Si el switch está prendido, guardamos el número, si no, null
                     robot_target_employee: toggle.checked ? targetEmp : null, 
                     articulo: `[${item.num}] - ${item.nom} - ${item.qty} pz`,
                     status: 'Pendiente',
@@ -868,7 +952,7 @@
                 await Promise.all(proms);
                 cart = []; updateAllViews();
                 document.getElementById('req-reason').value = "";
-                document.getElementById('req-target-employee').value = ""; // Limpiar input
+                document.getElementById('btn-clear-target').click(); // Limpiar buscador
                 document.getElementById('history-modal').classList.remove('hidden');
                 showToast(`Enviado: ${folio}`);
             } catch (e) { console.error(e); customAlert("Error al enviar", e.message); } 
