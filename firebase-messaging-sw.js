@@ -19,8 +19,8 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification.title || 'TC Bot';
   const notificationOptions = {
     body: payload.notification.body,
-    icon: 'icon-192.png',
-    badge: 'icon-192.png',
+    icon: 'icon-192.PNG',
+    badge: 'icon-192.PNG',
     vibrate: [100, 50, 100],
     data: { url: './index.html' }
   };
@@ -34,7 +34,7 @@ const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
-  './icon-192.png'
+  './icon-192.PNG'
 ];
 
 self.addEventListener('install', event => {
