@@ -49,7 +49,7 @@
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
 
-        /* Switch Toggle (NUEVO) */
+        /* Switch Toggle */
         .toggle-checkbox:checked { right: 0; border-color: #0ea5e9; }
         .toggle-checkbox:checked + .toggle-label { background-color: #0ea5e9; }
     </style>
@@ -218,7 +218,7 @@
                 <p id="g-modal-msg" class="text-slate-600 text-sm leading-relaxed">Mensaje del sistema.</p>
             </div>
             <div id="g-modal-actions" class="bg-slate-50 p-4 flex justify-end gap-3 border-t border-slate-100">
-                </div>
+            </div>
         </div>
     </div>
 
@@ -228,12 +228,13 @@
         import { getFirestore, collection, onSnapshot, addDoc, query, orderBy, limit, where, writeBatch, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
 
-        // REGISTRO DEL SERVICE WORKER (PWA)
+        // --- 1. REGISTRO DEL SERVICE WORKER (PWA + PUSH UNIFICADO) ---
+        // Aquí está el truco: registramos DIRECTAMENTE el archivo de Firebase
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW registrado:', reg.scope))
-                    .catch(err => console.log('SW error:', err));
+                navigator.serviceWorker.register('./firebase-messaging-sw.js')
+                    .then(reg => console.log('✅ Service Worker Maestro (SW + FCM) registrado:', reg.scope))
+                    .catch(err => console.log('❌ Error al registrar SW:', err));
             });
         }
 
@@ -252,7 +253,7 @@
         let currentUser = null;
         const LIMIT_USD = 500;
 
-        // --- LÓGICA DEL SWITCH (NUEVO) ---
+        // --- LÓGICA DEL SWITCH ---
         const toggleBtn = document.getElementById('toggle-mode');
         const targetContainer = document.getElementById('target-employee-container');
         const targetInput = document.getElementById('req-target-employee');
@@ -262,7 +263,7 @@
                 targetContainer.classList.remove('hidden');
             } else {
                 targetContainer.classList.add('hidden');
-                targetInput.value = ""; // Limpiar si se apaga
+                targetInput.value = ""; 
             }
         });
 
@@ -312,7 +313,7 @@
                 }
 
                 loadData();
-                listenHistory(); // Carga historial propio + viejos
+                listenHistory(); 
             } else {
                 document.getElementById('user-info').classList.add('hidden');
                 document.getElementById('btn-login').classList.remove('hidden');
@@ -332,15 +333,22 @@
         document.getElementById('btn-login').onclick = () => document.getElementById('login-modal').classList.remove('hidden');
         document.getElementById('btn-logout').onclick = () => signOut(auth);
 
-        // --- NOTIFICACIONES PUSH BLINDADAS ---
+        // --- 2. ACTIVAR NOTIFICACIONES (CORREGIDO) ---
         async function activarNotificaciones() {
             const btn = document.getElementById('btn-enable-notif');
             try {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
                     btn.innerText = "⏳..."; 
-                    const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-                    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+                    
+                    // Esperamos a que el SW que registramos al inicio esté listo
+                    const registration = await navigator.serviceWorker.ready;
+
+                    // Le pasamos ese registro YA EXISTENTE a Firebase
+                    const token = await getToken(messaging, { 
+                        vapidKey: VAPID_KEY, 
+                        serviceWorkerRegistration: registration 
+                    });
 
                     if (token) {
                         await setDoc(doc(db, "fcm_tokens", token), {
@@ -360,7 +368,14 @@
                 }
             } catch (error) {
                 console.error("Error detallado:", error);
-                customAlert("Error Técnico", error.message);
+                
+                // Si el error es "no active service worker", intentamos recargar
+                if(error.message && error.message.includes('active service worker')) {
+                    alert("Por favor recarga la página para activar el sistema.");
+                    window.location.reload();
+                } else {
+                    customAlert("Error Técnico", error.message);
+                }
                 btn.innerText = "🔔 Error";
             }
         }
@@ -445,7 +460,7 @@
             }
         };
 
-        // HISTORIAL FILTRADO HÍBRIDO (MÍO + VIEJAS)
+        // HISTORIAL
         function listenHistory() {
             const q = query(
                 collection(db, 'requi_toolcrib', 'data', 'requisitions'), 
@@ -468,7 +483,7 @@
                             authDate: d.fecha_autorizacion ? d.fecha_autorizacion.toDate() : null,
                             status: d.status || d.robot_status || 'Pendiente', 
                             empleado: d.nombre || 'Desconocido', 
-                            targetEmp: d.robot_target_employee || null, // <--- NUEVO
+                            targetEmp: d.robot_target_employee || null, 
                             items: [] 
                         }); 
                     }
@@ -489,7 +504,6 @@
 
                     const createStr = g.fecha.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
                     
-                    // MOSTRAR DESTINO SI EXISTE
                     const targetHtml = g.targetEmp 
                         ? `<div class="text-[10px] text-purple-600 font-bold bg-purple-50 px-1.5 py-0.5 rounded w-fit mt-0.5">🎯 Para: ${g.targetEmp}</div>`
                         : '';
@@ -500,7 +514,6 @@
                         authHtml = `<div class="text-[10px] font-bold text-green-700 mt-1 flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded w-fit">✅ Aut: ${authStr}</div>`;
                     }
 
-                    // Total
                     let totalRequi = 0;
                     g.items.forEach(item => {
                         const precio = Number(item.robot_price) || 0;
@@ -731,7 +744,7 @@
         document.getElementById('cat-filter').addEventListener('change', () => renderCatalog());
         document.getElementById('list-filter').addEventListener('change', () => renderCatalog());
 
-        // SUBMIT (GUARDADO CON USUARIO REAL + DESTINO)
+        // SUBMIT
         document.getElementById('btn-launch').onclick = async () => {
             const now = new Date();
             const folio = `REQ-${now.getFullYear().toString().slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
