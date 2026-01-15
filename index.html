@@ -261,7 +261,7 @@
                 }
 
                 loadData();
-                listenHistory();
+                listenHistory(); // Carga historial propio + viejos
             } else {
                 document.getElementById('user-info').classList.add('hidden');
                 document.getElementById('btn-login').classList.remove('hidden');
@@ -394,9 +394,16 @@
             }
         };
 
-        // HISTORIAL
+        // HISTORIAL FILTRADO HÍBRIDO (MÍO + VIEJAS)
         function listenHistory() {
-            const q = query(collection(db, 'requi_toolcrib', 'data', 'requisitions'), where("empleadoId", "==", "AUTO-BOT"), orderBy("timestamp", "desc"), limit(50));
+            // "in" operator: Busca si el empleadoId es MI email O es "AUTO-BOT"
+            const q = query(
+                collection(db, 'requi_toolcrib', 'data', 'requisitions'), 
+                where("empleadoId", "in", [currentUser.email, "AUTO-BOT"]), 
+                orderBy("timestamp", "desc"), 
+                limit(50)
+            );
+
             onSnapshot(q, (snapshot) => {
                 const list = document.getElementById('history-list');
                 if (snapshot.empty) { list.innerHTML = '<div class="text-center text-slate-400">Sin historial reciente.</div>'; return; }
@@ -410,6 +417,7 @@
                             fecha: d.timestamp ? d.timestamp.toDate() : new Date(), 
                             authDate: d.fecha_autorizacion ? d.fecha_autorizacion.toDate() : null,
                             status: d.status || d.robot_status || 'Pendiente', 
+                            empleado: d.nombre || 'Desconocido', // Mostrar quién la hizo
                             items: [] 
                         }); 
                     }
@@ -459,6 +467,7 @@
                                     <div class="font-bold text-slate-800 text-sm leading-tight">${g.folio}</div>
                                     ${folioHtml}
                                     <div class="text-xs text-slate-400 mt-0.5">Creada: ${createStr}</div>
+                                    <div class="text-[10px] text-cyan-600 font-bold mt-0.5">👤 ${g.empleado}</div>
                                     ${authHtml}
                                 </div>
                             </div>
@@ -665,7 +674,7 @@
         document.getElementById('cat-filter').addEventListener('change', () => renderCatalog());
         document.getElementById('list-filter').addEventListener('change', () => renderCatalog());
 
-        // SUBMIT
+        // SUBMIT (GUARDADO CON USUARIO REAL)
         document.getElementById('btn-launch').onclick = async () => {
             const now = new Date();
             const folio = `REQ-${now.getFullYear().toString().slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
@@ -679,12 +688,17 @@
             const btn = document.getElementById('btn-launch');
             btn.disabled = true; btn.innerText = "Enviando...";
 
+            // OBTENEMOS DATOS DEL USUARIO REAL
+            const userEmail = currentUser.email;
+            // Usamos displayName si existe, si no, lo que está antes del @ del correo
+            const userName = currentUser.displayName || userEmail.split('@')[0];
+
             try {
                 const proms = cart.map(item => addDoc(collection(db, 'requi_toolcrib', 'data', 'requisitions'), {
                     numRequi: folio,
                     fecha: now.toISOString().split('T')[0],
-                    empleadoId: "AUTO-BOT",
-                    nombre: "Comando Remoto",
+                    empleadoId: userEmail, // YA NO "AUTO-BOT", AHORA EL EMAIL REAL
+                    nombre: userName,      // YA NO "Comando Remoto", AHORA EL NOMBRE REAL
                     articulo: `[${item.num}] - ${item.nom} - ${item.qty} pz`,
                     status: 'Pendiente',
                     timestamp: now,
