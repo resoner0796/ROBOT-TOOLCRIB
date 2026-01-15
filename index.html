@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
     <title>TC Bot Commander 🤖</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -199,6 +204,15 @@
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, query, orderBy, limit, where, writeBatch, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
+
+        // REGISTRO DEL SERVICE WORKER (PWA)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registrado:', reg.scope))
+                    .catch(err => console.log('SW error:', err));
+            });
+        }
 
         // CONFIG
         const app = initializeApp({ apiKey: "AIzaSyDahnSPvBNTYot00JCn5CBjggAYFVGhbjE", authDomain: "panel-logistica-simple.firebaseapp.com", projectId: "panel-logistica-simple", storageBucket: "panel-logistica-simple.firebasestorage.app", messagingSenderId: "528779971851", appId: "1:528779971851:web:29ed933e7c7fd997a4e60e" });
@@ -396,7 +410,6 @@
 
         // HISTORIAL FILTRADO HÍBRIDO (MÍO + VIEJAS)
         function listenHistory() {
-            // "in" operator: Busca si el empleadoId es MI email O es "AUTO-BOT"
             const q = query(
                 collection(db, 'requi_toolcrib', 'data', 'requisitions'), 
                 where("empleadoId", "in", [currentUser.email, "AUTO-BOT"]), 
@@ -417,7 +430,7 @@
                             fecha: d.timestamp ? d.timestamp.toDate() : new Date(), 
                             authDate: d.fecha_autorizacion ? d.fecha_autorizacion.toDate() : null,
                             status: d.status || d.robot_status || 'Pendiente', 
-                            empleado: d.nombre || 'Desconocido', // Mostrar quién la hizo
+                            empleado: d.nombre || 'Desconocido', 
                             items: [] 
                         }); 
                     }
@@ -690,15 +703,14 @@
 
             // OBTENEMOS DATOS DEL USUARIO REAL
             const userEmail = currentUser.email;
-            // Usamos displayName si existe, si no, lo que está antes del @ del correo
             const userName = currentUser.displayName || userEmail.split('@')[0];
 
             try {
                 const proms = cart.map(item => addDoc(collection(db, 'requi_toolcrib', 'data', 'requisitions'), {
                     numRequi: folio,
                     fecha: now.toISOString().split('T')[0],
-                    empleadoId: userEmail, // YA NO "AUTO-BOT", AHORA EL EMAIL REAL
-                    nombre: userName,      // YA NO "Comando Remoto", AHORA EL NOMBRE REAL
+                    empleadoId: userEmail, // EMAIL REAL
+                    nombre: userName,      // NOMBRE REAL
                     articulo: `[${item.num}] - ${item.nom} - ${item.qty} pz`,
                     status: 'Pendiente',
                     timestamp: now,
